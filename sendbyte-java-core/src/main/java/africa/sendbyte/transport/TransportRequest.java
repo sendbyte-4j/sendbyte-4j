@@ -16,8 +16,12 @@ public final class TransportRequest {
     private final byte[] body;
     private final Duration timeout;
 
-    public TransportRequest(final String method, final URI uri, final Map<String, List<String>> headers,
-                            final byte[] body, final Duration timeout) {
+    public TransportRequest(
+            final String method,
+            final URI uri,
+            final Map<String, List<String>> headers,
+            final byte[] body,
+            final Duration timeout) {
         this.method = Objects.requireNonNull(method, "method");
         this.uri = Objects.requireNonNull(uri, "uri");
         final Map<String, List<String>> copiedHeaders = new LinkedHashMap<>();

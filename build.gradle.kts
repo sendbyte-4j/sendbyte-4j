@@ -1,7 +1,14 @@
 import java.net.URI
 import java.security.MessageDigest
+import org.gradle.api.plugins.JavaPlatformPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.quality.PmdExtension
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
@@ -11,7 +18,27 @@ import org.gradle.jvm.toolchain.JavaToolchainService
 
 plugins {
     base
+    id("com.diffplug.spotless") version "8.10.2"
+    id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
+
+val stableProductProjects = listOf(
+    ":sendbyte-java-email",
+    ":sendbyte-java-marketing",
+    ":sendbyte-java-webhooks",
+    ":sendbyte-java-admin",
+)
+
+val publishedProjects = listOf(
+    ":sendbyte-java-core",
+    *stableProductProjects.toTypedArray(),
+    ":sendbyte-java-all",
+    ":sendbyte-java-bom",
+    ":sendbyte-spring-boot-starter",
+    ":sendbyte-quarkus-runtime",
+    ":sendbyte-quarkus-deployment",
+    ":sendbyte-quarkus",
+)
 
 allprojects {
     group = "africa.sendbyte"
@@ -20,14 +47,35 @@ allprojects {
     repositories {
         mavenCentral()
     }
+
+    configurations.configureEach {
+        resolutionStrategy.failOnVersionConflict()
+    }
+
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
 }
 
 subprojects {
+    pluginManager.apply("maven-publish")
+
     plugins.withType<JavaPlugin> {
+        pluginManager.apply("pmd")
+
         extensions.configure<JavaPluginExtension> {
             toolchain.languageVersion.set(JavaLanguageVersion.of(17))
             withSourcesJar()
             withJavadocJar()
+        }
+
+        extensions.configure<PmdExtension> {
+            toolVersion = "7.24.0"
+            isConsoleOutput = true
+            rulesMinimumPriority.set(3)
+            ruleSets = emptyList()
+            ruleSetFiles = files(rootProject.file("config/pmd/ruleset.xml"))
         }
 
         tasks.withType<JavaCompile>().configureEach {
@@ -56,6 +104,165 @@ subprojects {
                 languageVersion.set(testJava.map(JavaLanguageVersion::of))
             })
         }
+
+        extensions.configure<PublishingExtension> {
+            publications {
+                create<MavenPublication>("mavenJava") {
+                    from(components["java"])
+                    artifactId = project.name
+                }
+            }
+        }
+    }
+
+    plugins.withType<JavaPlatformPlugin> {
+        extensions.configure<PublishingExtension> {
+            publications {
+                create<MavenPublication>("mavenJava") {
+                    from(components["javaPlatform"])
+                    artifactId = project.name
+                }
+            }
+        }
+    }
+
+    extensions.configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "consumerTest"
+                url = rootProject.layout.buildDirectory.dir("consumer-repository").get().asFile.toURI()
+            }
+        }
+    }
+}
+
+spotless {
+    java {
+        target("**/src/**/*.java")
+        googleJavaFormat("1.28.0").aosp()
+        removeUnusedImports()
+        forbidWildcardImports()
+    }
+
+    format("repositoryFiles") {
+        target(
+            "*.gradle.kts",
+            "*.md",
+            ".gitignore",
+            ".github/**/*.yml",
+            "docs/**/*.md",
+            "tasks/**/*.md",
+            "config/**/*.json",
+            "config/**/*.xml",
+            "**/build.gradle.kts",
+            "consumer-tests/**/*.xml",
+        )
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+licenseReport {
+    allowedLicensesFile = layout.projectDirectory.file("config/allowed-licenses.json")
+}
+
+val cleanConsumerRepository by tasks.registering(Delete::class) {
+    delete(layout.buildDirectory.dir("consumer-repository"))
+}
+
+val publishConsumerRepository by tasks.registering {
+    group = "verification"
+    description = "Publishes every SDK module to an isolated local repository."
+}
+
+gradle.projectsEvaluated {
+    val publicationTasks = publishedProjects.map { projectPath ->
+        project(projectPath).tasks.named("publishAllPublicationsToConsumerTestRepository")
+    }
+
+    publicationTasks.forEach { publicationTask ->
+        publicationTask.configure {
+            mustRunAfter(cleanConsumerRepository)
+        }
+    }
+
+    publishConsumerRepository.configure {
+        dependsOn(cleanConsumerRepository)
+        dependsOn(publicationTasks)
+    }
+}
+
+val consumerRepositoryUri = layout.buildDirectory.dir("consumer-repository").map { directory ->
+    directory.asFile.toURI().toString()
+}
+
+val verifyGradleConsumer by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Compiles selective, aggregate, and BOM usage in a clean Gradle fixture."
+    dependsOn(publishConsumerRepository)
+
+    commandLine(
+        "./gradlew",
+        "-p",
+        "consumer-tests/gradle",
+        "clean",
+        "check",
+        "--no-daemon",
+        "-PsdkRepository=${consumerRepositoryUri.get()}",
+        "-PsdkVersion=${project.version}",
+    )
+}
+
+val verifyMavenConsumer by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Compiles selective, aggregate, and BOM usage in a clean Maven fixture."
+    dependsOn(publishConsumerRepository)
+
+    commandLine(
+        "mvn",
+        "--batch-mode",
+        "--no-transfer-progress",
+        "-f",
+        "consumer-tests/maven/pom.xml",
+        "verify",
+        "-Dsdk.repository=${consumerRepositoryUri.get()}",
+        "-Dsdk.version=${project.version}",
+    )
+}
+
+val verifyConsumerFixtures by tasks.registering {
+    group = "verification"
+    description = "Verifies Maven and Gradle consumers against locally published artifacts."
+    dependsOn(verifyGradleConsumer, verifyMavenConsumer)
+}
+
+val verifyStableModuleSets by tasks.registering {
+    group = "verification"
+    description = "Prevents unapproved modules from entering the stable aggregate or BOM."
+
+    doLast {
+        val aggregateProjects = project(":sendbyte-java-all")
+            .configurations.getByName("api")
+            .dependencies
+            .filterIsInstance<org.gradle.api.artifacts.ProjectDependency>()
+            .map { dependency -> dependency.path }
+            .toSet()
+        check(aggregateProjects == stableProductProjects.toSet()) {
+            "Stable aggregate mismatch: expected $stableProductProjects, found $aggregateProjects"
+        }
+
+        val bomProjectNames = project(":sendbyte-java-bom")
+            .configurations.getByName("api")
+            .dependencyConstraints
+            .map { constraint -> constraint.name }
+            .toSet()
+        val expectedBomProjectNames = publishedProjects
+            .filterNot { projectPath -> projectPath == ":sendbyte-java-bom" }
+            .map { projectPath -> projectPath.removePrefix(":") }
+            .toSet()
+        check(bomProjectNames == expectedBomProjectNames) {
+            "Stable BOM mismatch: expected $expectedBomProjectNames, found $bomProjectNames"
+        }
     }
 }
 
@@ -81,7 +288,12 @@ val verifyOpenApiSnapshot by tasks.registering {
 }
 
 tasks.check {
-    dependsOn(verifyOpenApiSnapshot)
+    dependsOn(
+        verifyOpenApiSnapshot,
+        "checkLicense",
+        verifyConsumerFixtures,
+        verifyStableModuleSets,
+    )
 }
 
 tasks.register("checkOpenApiDrift") {

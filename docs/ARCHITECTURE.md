@@ -187,6 +187,8 @@ Product APIs remain resource-oriented, using names confirmed by the API contract
 
 Models should be immutable where practical. Deserialization must tolerate unknown response fields and preserve forward compatibility for evolving enum values.
 
+Public models are not serialized or deserialized directly. Product modules translate them to package-private API DTOs whose property names are mapped explicitly to the reviewed OpenAPI contract. A global JSON naming strategy is not used because it can silently rewrite exceptional or newly introduced field names. This boundary allows the public Java API and the platform wire contract to evolve independently.
+
 ## 6. Transport, serialization, and dependencies
 
 The SDK must work immediately with built-in defaults. "Self-contained" does not mean one shaded JAR containing multiple frameworks and HTTP stacks.

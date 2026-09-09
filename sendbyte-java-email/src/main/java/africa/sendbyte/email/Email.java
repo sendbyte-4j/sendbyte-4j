@@ -23,11 +23,21 @@ public final class Email {
     private final OffsetDateTime scheduledAt;
     private final OffsetDateTime createdAt;
 
-    Email(final String id, final String from, final List<String> to, final String subject,
-          final String rawStatus, final boolean sandbox, final List<String> tags, final String messageId,
-          final int openCount, final int clickCount, final OffsetDateTime firstOpenedAt,
-          final OffsetDateTime firstClickedAt, final OffsetDateTime scheduledAt,
-          final OffsetDateTime createdAt) {
+    Email(
+            final String id,
+            final String from,
+            final List<String> to,
+            final String subject,
+            final String rawStatus,
+            final boolean sandbox,
+            final List<String> tags,
+            final String messageId,
+            final int openCount,
+            final int clickCount,
+            final OffsetDateTime firstOpenedAt,
+            final OffsetDateTime firstClickedAt,
+            final OffsetDateTime scheduledAt,
+            final OffsetDateTime createdAt) {
         this.id = id;
         this.from = from;
         this.to = immutable(to);
@@ -106,6 +116,8 @@ public final class Email {
     }
 
     private static <T> List<T> immutable(final List<T> value) {
-        return value == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(value));
+        return value == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(value));
     }
 }

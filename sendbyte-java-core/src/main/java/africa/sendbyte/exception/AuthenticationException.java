@@ -4,8 +4,12 @@ package africa.sendbyte.exception;
 public final class AuthenticationException extends ApiException {
     private static final long serialVersionUID = 1L;
 
-    public AuthenticationException(final String message, final int statusCode, final String code,
-                                   final String documentationUrl, final String requestId) {
+    public AuthenticationException(
+            final String message,
+            final int statusCode,
+            final String code,
+            final String documentationUrl,
+            final String requestId) {
         super(message, statusCode, code, documentationUrl, requestId);
     }
 }

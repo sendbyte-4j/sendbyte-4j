@@ -8,8 +8,12 @@ public class ApiException extends SendByteException {
     private final String documentationUrl;
     private final String requestId;
 
-    public ApiException(final String message, final int statusCode, final String code,
-                        final String documentationUrl, final String requestId) {
+    public ApiException(
+            final String message,
+            final int statusCode,
+            final String code,
+            final String documentationUrl,
+            final String requestId) {
         super(message);
         this.statusCode = statusCode;
         this.code = code;

@@ -2,6 +2,7 @@
 .gradle/
 .kotlin/
 **/build/
+**/target/
 
 # Java runtime and crash output
 *.class

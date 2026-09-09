@@ -14,10 +14,9 @@ import africa.sendbyte.spi.ClientRuntime;
 import africa.sendbyte.transport.HttpTransport;
 import africa.sendbyte.transport.TransportRequest;
 import africa.sendbyte.transport.TransportResponse;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.net.http.HttpTimeoutException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -36,9 +35,13 @@ public final class DefaultClientRuntime implements ClientRuntime {
     private final AtomicBoolean closed;
     private final JacksonJsonCodec json = new JacksonJsonCodec();
 
-    public DefaultClientRuntime(final URI baseUri, final CredentialsProvider credentialsProvider,
-                                final HttpTransport transport, final Duration requestTimeout,
-                                final String userAgent, final AtomicBoolean closed) {
+    public DefaultClientRuntime(
+            final URI baseUri,
+            final CredentialsProvider credentialsProvider,
+            final HttpTransport transport,
+            final Duration requestTimeout,
+            final String userAgent,
+            final AtomicBoolean closed) {
         this.baseUri = baseUri;
         this.credentialsProvider = credentialsProvider;
         this.transport = transport;
@@ -52,7 +55,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
         this.ensureOpen();
 
         try {
-            return this.decode(this.transport.execute(this.toTransportRequest(request)), responseType);
+            return this.decode(
+                    this.transport.execute(this.toTransportRequest(request)), responseType);
         } catch (final InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new ConnectionException("Interrupted while calling the SendByte API", exception);
@@ -64,7 +68,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
     }
 
     @Override
-    public <T> CompletableFuture<T> executeAsync(final ClientRequest request, final Class<T> responseType) {
+    public <T> CompletableFuture<T> executeAsync(
+            final ClientRequest request, final Class<T> responseType) {
         this.ensureOpen();
 
         final TransportRequest transportRequest;
@@ -76,30 +81,35 @@ public final class DefaultClientRuntime implements ClientRuntime {
             return failed;
         }
 
-        final CompletableFuture<TransportResponse> source = this.transport.executeAsync(transportRequest);
+        final CompletableFuture<TransportResponse> source =
+                this.transport.executeAsync(transportRequest);
         final CompletableFuture<T> result = new CompletableFuture<>();
 
-        source.whenComplete((response, failure) -> {
-            if (failure != null) {
-                final Throwable cause = unwrap(failure);
-                result.completeExceptionally(cause instanceof ApiException
-                        ? cause
-                        : new ConnectionException("Could not reach the SendByte API", cause));
-                return;
-            }
+        source.whenComplete(
+                (response, failure) -> {
+                    if (failure != null) {
+                        final Throwable cause = unwrap(failure);
+                        result.completeExceptionally(
+                                cause instanceof ApiException
+                                        ? cause
+                                        : new ConnectionException(
+                                                "Could not reach the SendByte API", cause));
+                        return;
+                    }
 
-            try {
-                result.complete(this.decode(response, responseType));
-            } catch (final RuntimeException decodingFailure) {
-                result.completeExceptionally(decodingFailure);
-            }
-        });
+                    try {
+                        result.complete(this.decode(response, responseType));
+                    } catch (final RuntimeException decodingFailure) {
+                        result.completeExceptionally(decodingFailure);
+                    }
+                });
 
-        result.whenComplete((ignored, failure) -> {
-            if (result.isCancelled()) {
-                source.cancel(true);
-            }
-        });
+        result.whenComplete(
+                (ignored, failure) -> {
+                    if (result.isCancelled()) {
+                        source.cancel(true);
+                    }
+                });
         return result;
     }
 
@@ -154,20 +164,24 @@ public final class DefaultClientRuntime implements ClientRuntime {
 
         final ErrorBody error = envelope == null ? null : envelope.error;
         final String code = error == null ? null : error.code;
-        final String message = error == null || error.message == null
-                ? "SendByte API request failed with HTTP " + response.statusCode()
-                : error.message;
+        final String message =
+                error == null || error.message == null
+                        ? "SendByte API request failed with HTTP " + response.statusCode()
+                        : error.message;
         final String docsUrl = error == null ? null : error.docsUrl;
         final String requestId = response.firstHeader("x-request-id");
 
         if ("validation_error".equals(code) || response.statusCode() == 422) {
-            return new ValidationException(message, response.statusCode(), code, docsUrl, requestId);
+            return new ValidationException(
+                    message, response.statusCode(), code, docsUrl, requestId);
         }
         if ("authentication_error".equals(code) || response.statusCode() == 401) {
-            return new AuthenticationException(message, response.statusCode(), code, docsUrl, requestId);
+            return new AuthenticationException(
+                    message, response.statusCode(), code, docsUrl, requestId);
         }
         if ("authorization_error".equals(code) || response.statusCode() == 403) {
-            return new AuthorizationException(message, response.statusCode(), code, docsUrl, requestId);
+            return new AuthorizationException(
+                    message, response.statusCode(), code, docsUrl, requestId);
         }
         if ("not_found".equals(code) || response.statusCode() == 404) {
             return new NotFoundException(message, response.statusCode(), code, docsUrl, requestId);
@@ -176,7 +190,12 @@ public final class DefaultClientRuntime implements ClientRuntime {
             return new ConflictException(message, response.statusCode(), code, docsUrl, requestId);
         }
         if ("rate_limit_exceeded".equals(code) || response.statusCode() == 429) {
-            return new RateLimitException(message, response.statusCode(), code, docsUrl, requestId,
+            return new RateLimitException(
+                    message,
+                    response.statusCode(),
+                    code,
+                    docsUrl,
+                    requestId,
                     retryAfter(response.firstHeader("Retry-After")));
         }
         return new ApiException(message, response.statusCode(), code, docsUrl, requestId);
@@ -195,7 +214,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
 
     private static Throwable unwrap(final Throwable failure) {
         Throwable current = failure;
-        while ((current instanceof CompletionException || current instanceof java.util.concurrent.ExecutionException)
+        while ((current instanceof CompletionException
+                        || current instanceof java.util.concurrent.ExecutionException)
                 && current.getCause() != null) {
             current = current.getCause();
         }
@@ -215,6 +235,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
     public static final class ErrorBody {
         public String code;
         public String message;
+
+        @JsonProperty("docs_url")
         public String docsUrl;
     }
 }

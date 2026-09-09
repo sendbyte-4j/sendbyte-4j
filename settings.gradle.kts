@@ -8,4 +8,8 @@ include(
     "sendbyte-java-admin",
     "sendbyte-java-all",
     "sendbyte-java-bom",
+    "sendbyte-spring-boot-starter",
+    "sendbyte-quarkus-runtime",
+    "sendbyte-quarkus-deployment",
+    "sendbyte-quarkus",
 )
