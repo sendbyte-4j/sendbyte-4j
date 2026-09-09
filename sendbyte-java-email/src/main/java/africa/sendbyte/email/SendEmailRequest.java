@@ -38,7 +38,8 @@ public final class SendEmailRequest {
         this.templateId = optionalNonBlank(builder.templateId, "templateId", 256);
 
         if (this.html == null && this.text == null && this.templateId == null) {
-            throw new IllegalArgumentException("At least one of html, text, or templateId is required");
+            throw new IllegalArgumentException(
+                    "At least one of html, text, or templateId is required");
         }
         if (this.subject == null && this.templateId == null) {
             throw new IllegalArgumentException("subject is required unless templateId is provided");
@@ -160,8 +161,7 @@ public final class SendEmailRequest {
         private String idempotencyKey;
         private TrackingOptions tracking;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder from(final String from) {
             this.from = from;
@@ -258,7 +258,8 @@ public final class SendEmailRequest {
         }
     }
 
-    private static List<String> addressList(final List<String> values, final String name, final boolean required) {
+    private static List<String> addressList(
+            final List<String> values, final String name, final boolean required) {
         if (values.isEmpty()) {
             if (required) {
                 throw new IllegalArgumentException(name + " must contain at least one address");
@@ -282,23 +283,28 @@ public final class SendEmailRequest {
         }
 
         final Map<String, String> copy = new LinkedHashMap<>();
-        values.forEach((name, value) -> {
-            Attachment.requireLength(name, "header name", 1, 256);
-            Objects.requireNonNull(value, "header value");
-            if (value.length() > 4096 || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
-                throw new IllegalArgumentException("header values must be at most 4096 characters and contain no line breaks");
-            }
-            if ("message-id".equalsIgnoreCase(name)) {
-                throw new IllegalArgumentException("Message-ID cannot be overridden");
-            }
+        values.forEach(
+                (name, value) -> {
+                    Attachment.requireLength(name, "header name", 1, 256);
+                    Objects.requireNonNull(value, "header value");
+                    if (value.length() > 4096
+                            || value.indexOf('\r') >= 0
+                            || value.indexOf('\n') >= 0) {
+                        throw new IllegalArgumentException(
+                                "header values must be at most 4096 characters and contain no line breaks");
+                    }
+                    if ("message-id".equalsIgnoreCase(name)) {
+                        throw new IllegalArgumentException("Message-ID cannot be overridden");
+                    }
 
-            copy.put(name, value);
-        });
+                    copy.put(name, value);
+                });
 
         return Collections.unmodifiableMap(copy);
     }
 
-    private static String optionalNonBlank(final String value, final String name, final int maximum) {
+    private static String optionalNonBlank(
+            final String value, final String name, final int maximum) {
         if (value == null) {
             return null;
         }

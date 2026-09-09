@@ -11,7 +11,8 @@ public final class TransportResponse {
     private final Map<String, List<String>> headers;
     private final byte[] body;
 
-    public TransportResponse(final int statusCode, final Map<String, List<String>> headers, final byte[] body) {
+    public TransportResponse(
+            final int statusCode, final Map<String, List<String>> headers, final byte[] body) {
         this.statusCode = statusCode;
         final Map<String, List<String>> copiedHeaders = new LinkedHashMap<>();
         headers.forEach((name, values) -> copiedHeaders.put(name, List.copyOf(values)));

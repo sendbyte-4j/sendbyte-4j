@@ -38,3 +38,31 @@ jobs:
 
       - name: Build and test
         run: ./gradlew clean check -PtestJavaVersion=${{ matrix.test-java }} --no-daemon
+
+  reproducible-artifacts:
+    name: Verify reproducible artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build first artifact set
+        run: |
+          ./gradlew clean assemble --no-daemon
+          find . -path '*/build/libs/*.jar' -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/first-artifacts.sha256
+
+      - name: Rebuild and compare artifacts
+        run: |
+          ./gradlew clean assemble --no-daemon
+          find . -path '*/build/libs/*.jar' -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/second-artifacts.sha256
+          diff --unified /tmp/first-artifacts.sha256 /tmp/second-artifacts.sha256

@@ -4,7 +4,6 @@ import africa.sendbyte.internal.DefaultClientRuntime;
 import africa.sendbyte.spi.ClientRuntime;
 import africa.sendbyte.transport.HttpTransport;
 import africa.sendbyte.transport.JdkHttpTransport;
-
 import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
@@ -13,9 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Framework-neutral entry point for SendByte product clients.
  *
- * <p>Instances are immutable and thread-safe. Create one and reuse it. Product
- * modules adapt the shared {@link #runtime()} rather than implementing their own
- * authentication, HTTP, serialization, or error handling.</p>
+ * <p>Instances are immutable and thread-safe. Create one and reuse it. Product modules adapt the
+ * shared {@link #runtime()} rather than implementing their own authentication, HTTP, serialization,
+ * or error handling.
  */
 public final class SendByteClient implements AutoCloseable {
     public static final URI DEFAULT_BASE_URI = URI.create("https://api.sendbyte.africa");
@@ -26,26 +25,26 @@ public final class SendByteClient implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private SendByteClient(final Builder builder) {
-        final CredentialsProvider credentials = Objects.requireNonNull(
-                builder.credentialsProvider,
-                "credentialsProvider");
+        final CredentialsProvider credentials =
+                Objects.requireNonNull(builder.credentialsProvider, "credentialsProvider");
         validateCredentials(credentials.apiKey());
 
-        this.transport = builder.transport != null
-                ? builder.transport
-                : new JdkHttpTransport(builder.connectTimeout);
+        this.transport =
+                builder.transport != null
+                        ? builder.transport
+                        : new JdkHttpTransport(builder.connectTimeout);
 
-        this.transportOwnership = builder.transport != null
-                ? builder.transportOwnership
-                : ResourceOwnership.CLIENT;
+        this.transportOwnership =
+                builder.transport != null ? builder.transportOwnership : ResourceOwnership.CLIENT;
 
-        this.runtime = new DefaultClientRuntime(
-                builder.baseUri,
-                credentials,
-                this.transport,
-                builder.requestTimeout,
-                builder.userAgent,
-                this.closed);
+        this.runtime =
+                new DefaultClientRuntime(
+                        builder.baseUri,
+                        credentials,
+                        this.transport,
+                        builder.requestTimeout,
+                        builder.userAgent,
+                        this.closed);
     }
 
     public static Builder builder() {
@@ -53,8 +52,8 @@ public final class SendByteClient implements AutoCloseable {
     }
 
     /**
-     * Shared runtime intended for SendByte product modules and advanced adapters.
-     * Application code normally passes this client to a product facade instead.
+     * Shared runtime intended for SendByte product modules and advanced adapters. Application code
+     * normally passes this client to a product facade instead.
      */
     public ClientRuntime runtime() {
         this.ensureOpen();
@@ -73,7 +72,8 @@ public final class SendByteClient implements AutoCloseable {
 
     @Override
     public void close() {
-        if (this.closed.compareAndSet(false, true) && this.transportOwnership == ResourceOwnership.CLIENT) {
+        if (this.closed.compareAndSet(false, true)
+                && this.transportOwnership == ResourceOwnership.CLIENT) {
             this.transport.close();
         }
     }
@@ -83,7 +83,8 @@ public final class SendByteClient implements AutoCloseable {
             throw new IllegalArgumentException("A non-blank SendByte API key is required");
         }
         if (containsControlCharacter(apiKey)) {
-            throw new IllegalArgumentException("The SendByte API key contains an invalid control character");
+            throw new IllegalArgumentException(
+                    "The SendByte API key contains an invalid control character");
         }
     }
 
@@ -105,8 +106,7 @@ public final class SendByteClient implements AutoCloseable {
         private HttpTransport transport;
         private ResourceOwnership transportOwnership = ResourceOwnership.CALLER;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder apiKey(final String apiKey) {
             this.credentialsProvider = () -> apiKey;
@@ -114,7 +114,8 @@ public final class SendByteClient implements AutoCloseable {
         }
 
         public Builder credentialsProvider(final CredentialsProvider credentialsProvider) {
-            this.credentialsProvider = Objects.requireNonNull(credentialsProvider, "credentialsProvider");
+            this.credentialsProvider =
+                    Objects.requireNonNull(credentialsProvider, "credentialsProvider");
             return this;
         }
 
@@ -134,8 +135,11 @@ public final class SendByteClient implements AutoCloseable {
         }
 
         public Builder userAgent(final String userAgent) {
-            if (userAgent == null || userAgent.trim().isEmpty() || containsControlCharacter(userAgent)) {
-                throw new IllegalArgumentException("userAgent must be non-blank and contain no control characters");
+            if (userAgent == null
+                    || userAgent.trim().isEmpty()
+                    || containsControlCharacter(userAgent)) {
+                throw new IllegalArgumentException(
+                        "userAgent must be non-blank and contain no control characters");
             }
             this.userAgent = userAgent;
             return this;
@@ -159,17 +163,23 @@ public final class SendByteClient implements AutoCloseable {
             Objects.requireNonNull(value, "baseUri");
             final String scheme = value.getScheme();
 
-            if (!value.isAbsolute() || value.getHost() == null || value.getQuery() != null || value.getFragment() != null) {
-                throw new IllegalArgumentException("baseUri must be an absolute HTTP(S) URI without query or fragment");
+            if (!value.isAbsolute()
+                    || value.getHost() == null
+                    || value.getQuery() != null
+                    || value.getFragment() != null) {
+                throw new IllegalArgumentException(
+                        "baseUri must be an absolute HTTP(S) URI without query or fragment");
             }
 
             final boolean secure = "https".equalsIgnoreCase(scheme);
-            final boolean loopback = "http".equalsIgnoreCase(scheme)
-                    && ("localhost".equalsIgnoreCase(value.getHost())
-                    || "127.0.0.1".equals(value.getHost())
-                    || "::1".equals(value.getHost()));
+            final boolean loopback =
+                    "http".equalsIgnoreCase(scheme)
+                            && ("localhost".equalsIgnoreCase(value.getHost())
+                                    || "127.0.0.1".equals(value.getHost())
+                                    || "::1".equals(value.getHost()));
             if (!secure && !loopback) {
-                throw new IllegalArgumentException("baseUri must use HTTPS; HTTP is permitted only for loopback tests");
+                throw new IllegalArgumentException(
+                        "baseUri must use HTTPS; HTTP is permitted only for loopback tests");
             }
 
             final String path = value.getPath();

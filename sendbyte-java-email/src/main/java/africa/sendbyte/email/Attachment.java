@@ -19,14 +19,16 @@ public final class Attachment {
         this.disposition = builder.disposition;
     }
 
-    public static Builder builder(final String filename, final String contentType, final byte[] content) {
+    public static Builder builder(
+            final String filename, final String contentType, final byte[] content) {
         Objects.requireNonNull(content, "content");
         return new Builder(filename, contentType, Base64.getEncoder().encodeToString(content));
     }
 
-    public static Builder encodedBuilder(final String filename, final String contentType,
-                                         final String base64Content) {
-        return new Builder(filename, contentType, Objects.requireNonNull(base64Content, "base64Content"));
+    public static Builder encodedBuilder(
+            final String filename, final String contentType, final String base64Content) {
+        return new Builder(
+                filename, contentType, Objects.requireNonNull(base64Content, "base64Content"));
     }
 
     public String getFilename() {
@@ -88,17 +90,20 @@ public final class Attachment {
         }
     }
 
-    static String requireLength(final String value, final String name, final int minimum, final int maximum) {
+    static String requireLength(
+            final String value, final String name, final int minimum, final int maximum) {
         Objects.requireNonNull(value, name);
         if (value.length() < minimum || value.length() > maximum) {
-            throw new IllegalArgumentException(name + " must contain between " + minimum + " and " + maximum + " characters");
+            throw new IllegalArgumentException(
+                    name + " must contain between " + minimum + " and " + maximum + " characters");
         }
         return value;
     }
 
     static String optionalMax(final String value, final String name, final int maximum) {
         if (value != null && value.length() > maximum) {
-            throw new IllegalArgumentException(name + " must contain at most " + maximum + " characters");
+            throw new IllegalArgumentException(
+                    name + " must contain at most " + maximum + " characters");
         }
         return value;
     }

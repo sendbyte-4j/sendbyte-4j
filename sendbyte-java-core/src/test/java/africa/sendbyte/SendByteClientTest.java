@@ -1,39 +1,42 @@
 package africa.sendbyte;
 
-import africa.sendbyte.transport.HttpTransport;
-import africa.sendbyte.transport.TransportRequest;
-import africa.sendbyte.transport.TransportResponse;
-import org.junit.jupiter.api.Test;
-
-import java.net.URI;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import africa.sendbyte.transport.HttpTransport;
+import africa.sendbyte.transport.TransportRequest;
+import africa.sendbyte.transport.TransportResponse;
+import java.net.URI;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+
 final class SendByteClientTest {
     @Test
     void rejectsUnsafeOrInvalidConfiguration() {
         assertThrows(NullPointerException.class, () -> SendByteClient.builder().build());
-        assertThrows(IllegalArgumentException.class, () -> SendByteClient.builder().apiKey(" ").build());
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class, () -> SendByteClient.builder().apiKey(" ").build());
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> SendByteClient.builder().baseUri(URI.create("http://api.example.com")));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> SendByteClient.builder().apiKey("key").requestTimeout(Duration.ZERO));
     }
 
     @Test
     void closesOwnedTransportExactlyOnce() {
         final CloseCountingTransport transport = new CloseCountingTransport();
-        final SendByteClient client = SendByteClient.builder()
-                .apiKey("sk_test_example")
-                .transport(transport, ResourceOwnership.CLIENT)
-                .build();
+        final SendByteClient client =
+                SendByteClient.builder()
+                        .apiKey("sk_test_example")
+                        .transport(transport, ResourceOwnership.CLIENT)
+                        .build();
 
         client.close();
         client.close();
@@ -46,10 +49,11 @@ final class SendByteClientTest {
     @Test
     void leavesCallerOwnedTransportOpen() {
         final CloseCountingTransport transport = new CloseCountingTransport();
-        final SendByteClient client = SendByteClient.builder()
-                .apiKey("sk_test_example")
-                .transport(transport, ResourceOwnership.CALLER)
-                .build();
+        final SendByteClient client =
+                SendByteClient.builder()
+                        .apiKey("sk_test_example")
+                        .transport(transport, ResourceOwnership.CALLER)
+                        .build();
 
         client.close();
 

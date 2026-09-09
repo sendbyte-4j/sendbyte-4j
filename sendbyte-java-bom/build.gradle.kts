@@ -10,5 +10,9 @@ dependencies {
         api(project(":sendbyte-java-webhooks"))
         api(project(":sendbyte-java-admin"))
         api(project(":sendbyte-java-all"))
+        api(project(":sendbyte-spring-boot-starter"))
+        api(project(":sendbyte-quarkus-runtime"))
+        api(project(":sendbyte-quarkus-deployment"))
+        api(project(":sendbyte-quarkus"))
     }
 }
