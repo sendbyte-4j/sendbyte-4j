@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test on Java ${{ matrix.test-java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-java: ["11", "17", "21", "25"]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install test JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.test-java }}
+
+      - name: Install Gradle runtime JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build and test
+        run: ./gradlew clean check -PtestJavaVersion=${{ matrix.test-java }} --no-daemon

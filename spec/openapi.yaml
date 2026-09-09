@@ -1,0 +1,1350 @@
+openapi: 3.1.0
+info:
+  title: SendByte API
+  version: "1.0.0"
+  description: |
+    The SendByte HTTP API for sending transactional email and managing domains,
+    templates, API keys, webhooks, and suppressions.
+
+    Authentication uses an API key passed as a bearer token:
+    `Authorization: Bearer sk_live_...`. Keys are either live (`sk_live_`, real
+    delivery, requires a verified sending domain) or test (`sk_test_`, sandbox,
+    nothing is delivered). Keys carry a scope: `send_only`, `read_only`, or
+    `full_access`.
+
+    Errors always return `{ "error": { "code", "message", "docs_url" } }`.
+    Branch on `error.code`, never on the message. Every response includes an
+    `x-request-id` header; `429` responses include `Retry-After` (seconds).
+
+    Default rate limit: 120 requests per minute per API key.
+  contact:
+    name: SendByte Support
+    email: support@sendbyte.africa
+    url: https://docs.sendbyte.africa
+servers:
+  - url: https://api.sendbyte.africa
+    description: Production
+security:
+  - apiKey: []
+tags:
+  - name: Emails
+  - name: Domains
+  - name: Templates
+  - name: API keys
+  - name: Webhooks
+  - name: Suppressions
+
+paths:
+  /v1/emails:
+    post:
+      tags: [Emails]
+      operationId: sendEmail
+      summary: Send an email
+      description: |
+        Send a transactional email. Provide at least one of `html`, `text`, or
+        `template_id`. `subject` is required unless a `template_id` is given.
+        Returns 201 for a new send, or 200 when an `idempotency_key` replays a
+        prior send. Idempotency keys do not expire.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendEmailRequest"
+      responses:
+        "201":
+          description: Email accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Email"
+        "200":
+          description: Idempotent replay; the original email is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Email"
+        "422": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "402": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Emails]
+      operationId: listEmails
+      summary: List emails
+      description: Cursor-paginated, newest first.
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: after
+          in: query
+          description: Cursor; the id of the last email from the previous page.
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/EmailStatus" }
+      responses:
+        "200":
+          description: A page of emails.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, has_more]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Email" }
+                  has_more: { type: boolean }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/emails/export:
+    get:
+      tags: [Emails]
+      operationId: exportEmails
+      summary: Export sent email history as CSV
+      description: >-
+        Streams the send history as CSV using the same filters as the list
+        endpoint. Bounded by the plan's log-retention window. Paging parameters
+        are not accepted.
+      parameters:
+        - { in: query, name: status, schema: { $ref: "#/components/schemas/EmailStatus" } }
+        - { in: query, name: domain_id, schema: { type: string, format: uuid } }
+        - { in: query, name: sandbox, schema: { type: boolean } }
+        - { in: query, name: days, schema: { type: integer, minimum: 1, maximum: 3650 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 200 } }
+      responses:
+        "200":
+          description: CSV attachment, streamed.
+          headers:
+            content-disposition:
+              schema: { type: string }
+              description: "attachment; filename=\"sendbyte-email-log-YYYY-MM-DD.csv\""
+            x-sendbyte-retention-days:
+              schema: { type: integer }
+              description: Days of log history the plan keeps.
+            x-sendbyte-window-start:
+              schema: { type: string, format: date-time }
+              description: Oldest timestamp that can appear in the file.
+          content:
+            text/csv:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/emails/{id}:
+    get:
+      tags: [Emails]
+      operationId: getEmail
+      summary: Retrieve an email
+      description: Returns the email with its full body and event timeline.
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: The email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailDetail"
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/brands:
+    get:
+      tags: [Marketing]
+      operationId: listBrands
+      summary: List brands
+      description: >
+        Marketing brands on the account. A brand holds lists, campaigns and
+        reports, and carries the public name and logo your subscribers see.
+        `cap` and `used` describe your plan's brand allowance.
+      responses:
+        "200":
+          description: Brands.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Brand" }
+                  cap: { type: integer, nullable: true }
+                  used: { type: integer }
+    post:
+      tags: [Marketing]
+      operationId: createBrand
+      summary: Create a brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: Internal name. Only you see this one.
+                  example: Afripad
+                public_name:
+                  type: string
+                  description: >
+                    What subscribers see on your signup and unsubscribe pages
+                    and in every campaign footer. Defaults to `name`.
+                  example: Afripad Weekly
+                from_address: { type: string, example: hello@afripad.co }
+                postal_address:
+                  type: string
+                  description: >
+                    Required in the footer of every marketing email by bulk
+                    sender rules. Campaigns will not send without it.
+      responses:
+        "201":
+          description: Brand created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+
+  /v1/brands/{brandId}/lists:
+    parameters:
+      - { name: brandId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Marketing]
+      operationId: listSubscriberLists
+      summary: List a brand's lists
+      responses:
+        "200":
+          description: Lists with their membership counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SubscriberList" }
+    post:
+      tags: [Marketing]
+      operationId: createSubscriberList
+      summary: Create a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: Newsletter }
+                opt_in:
+                  type: string
+                  enum: [single, double]
+                  default: double
+                  description: >
+                    `double` requires a confirmation click before anyone is
+                    mailed. It is the default because a consent-proven list is
+                    what reaches the inbox.
+      responses:
+        "201":
+          description: List created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubscriberList" }
+
+  /v1/brands/{brandId}/lists/{listId}/subscribers:
+    parameters:
+      - { name: brandId, in: path, required: true, schema: { type: string } }
+      - { name: listId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Marketing]
+      operationId: listSubscribers
+      summary: List subscribers
+      description: >
+        Search runs in the database over email, name and custom field values,
+        so a large list is paged rather than downloaded.
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Search email, name or a custom field value. }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [subscribed, unconfirmed, unsubscribed, bounced, complained]
+        - { name: limit, in: query, schema: { type: integer, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Subscribers on this list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subscriber" }
+                  total: { type: integer }
+                  cap: { type: integer, nullable: true }
+                  used: { type: integer }
+    post:
+      tags: [Marketing]
+      operationId: addSubscriber
+      summary: Add someone to a list
+      description: >
+        On a double opt-in list the person is added as `unconfirmed` and is
+        never emailed until they confirm.
+
+
+        Anyone who previously unsubscribed, hard bounced, or opted out of the
+        brand is deliberately left alone: the response carries `skipped_reason`
+        and a 200 rather than an error, so a bulk caller can log it and carry
+        on. Adding somebody again never undoes their unsubscribe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, example: ada@example.com }
+                name: { type: string, example: Ada }
+                attributes:
+                  type: object
+                  additionalProperties: true
+                  description: Custom field values, keyed by field tag.
+                  example: { city: Abuja }
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddSubscriberResult" }
+        "200":
+          description: Already known, or deliberately left alone. Check `skipped_reason`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddSubscriberResult" }
+
+  /v1/brands/{brandId}/lists/{listId}/import:
+    parameters:
+      - { name: brandId, in: path, required: true, schema: { type: string } }
+      - { name: listId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Marketing]
+      operationId: importSubscribers
+      summary: Import subscribers
+      description: >
+        Up to 1,000 rows per call. Every rejected row comes back with a reason,
+        because a total alone hides the rows that did not make it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscribers]
+              properties:
+                subscribers:
+                  type: array
+                  maxItems: 1000
+                  items:
+                    type: object
+                    required: [email]
+                    properties:
+                      email: { type: string }
+                      name: { type: string }
+                      attributes: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: What happened to every row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportSummary" }
+
+  /v1/domains:
+    post:
+      tags: [Domains]
+      operationId: createDomain
+      summary: Add a sending domain
+      description: Returns 201 for a new domain, 200 if it already exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain:
+                  type: string
+                  minLength: 4
+                  maxLength: 253
+                  description: Bare domain, e.g. `paylink.ng` (no scheme or path).
+                  example: paylink.ng
+      responses:
+        "201":
+          description: Domain created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Domain" }
+        "200":
+          description: Domain already existed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Domain" }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Domains]
+      operationId: listDomains
+      summary: List domains
+      responses:
+        "200":
+          description: All domains for the project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Domain" }
+  /v1/domains/{id}:
+    get:
+      tags: [Domains]
+      operationId: getDomain
+      summary: Get a domain
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The domain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Domain" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Domains]
+      operationId: deleteDomain
+      summary: Remove a domain
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Domain removed. }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/domains/{id}/verify:
+    post:
+      tags: [Domains]
+      operationId: verifyDomain
+      summary: Re-check DNS and verify a domain
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: Verification result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  domain: { type: string }
+                  status: { type: string, enum: [pending, verified] }
+                  checks:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+                  ses_verified: { type: [boolean, "null"] }
+                  deliverability_ready: { type: boolean }
+                  tracking: { type: string, enum: [off, pending, active] }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/domains/{id}/tracking:
+    post:
+      tags: [Domains]
+      operationId: setDomainTracking
+      summary: Toggle branded tracking links
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: The updated domain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Domain" }
+
+  /v1/templates:
+    post:
+      tags: [Templates]
+      operationId: createTemplate
+      summary: Create a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TemplateInput" }
+      responses:
+        "201":
+          description: Template created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "422": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Templates]
+      operationId: listTemplates
+      summary: List templates
+      responses:
+        "200":
+          description: All templates (without bodies).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Template" }
+  /v1/templates/{id}:
+    get:
+      tags: [Templates]
+      operationId: getTemplate
+      summary: Get a template
+      description: "`id` may be a UUID or the template name."
+      parameters: [{ $ref: "#/components/parameters/PathIdOrName" }]
+      responses:
+        "200":
+          description: The template with bodies.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Templates]
+      operationId: updateTemplate
+      summary: Update a template
+      parameters: [{ $ref: "#/components/parameters/PathIdOrName" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TemplateInput" }
+      responses:
+        "200":
+          description: The updated template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Templates]
+      operationId: deleteTemplate
+      summary: Delete a template
+      parameters: [{ $ref: "#/components/parameters/PathIdOrName" }]
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  deleted: { type: boolean }
+  /v1/templates/render:
+    post:
+      tags: [Templates]
+      operationId: renderTemplate
+      summary: Render inline template content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject]
+              properties:
+                subject: { type: string, minLength: 1, maxLength: 998 }
+                html: { type: string }
+                text: { type: string }
+                mjml: { type: string }
+                variables: { type: object, additionalProperties: true, default: {} }
+      responses:
+        "200":
+          description: Rendered output.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RenderedTemplate" }
+  /v1/templates/{id}/preview:
+    post:
+      tags: [Templates]
+      operationId: previewTemplate
+      summary: Render a saved template
+      parameters: [{ $ref: "#/components/parameters/PathIdOrName" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables: { type: object, additionalProperties: true, default: {} }
+      responses:
+        "200":
+          description: Rendered output.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RenderedTemplate" }
+
+  /v1/api-keys:
+    post:
+      tags: [API keys]
+      operationId: createApiKey
+      summary: Create an API key
+      description: The full secret is returned once, in `key`. Store it securely.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                scope:
+                  type: string
+                  enum: [send_only, read_only, full_access]
+                  default: full_access
+                mode:
+                  type: string
+                  enum: [live, test]
+                  default: test
+      responses:
+        "201":
+          description: Key created; `key` is shown once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiKey"
+                  - type: object
+                    properties:
+                      key: { type: string, description: The full secret, shown only once. }
+        "403": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [API keys]
+      operationId: listApiKeys
+      summary: List API keys
+      responses:
+        "200":
+          description: All keys (secrets not included).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKey" }
+  /v1/api-keys/{id}:
+    patch:
+      tags: [API keys]
+      operationId: renameApiKey
+      summary: Rename an API key
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        "200":
+          description: The updated key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiKey" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [API keys]
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: A key cannot revoke itself.
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The revoked key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiKey" }
+        "422": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/webhooks:
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Create a webhook endpoint
+      description: The signing secret is returned once, in `secret`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: Public https URL. Private/loopback/metadata addresses are rejected.
+                events:
+                  type: array
+                  minItems: 1
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                  description: Omit to subscribe to all event types.
+      responses:
+        "201":
+          description: Endpoint created; `secret` is shown once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/WebhookEndpoint"
+                  - type: object
+                    properties:
+                      secret: { type: string, description: "Signing secret (whsec_...), shown only once." }
+    get:
+      tags: [Webhooks]
+      operationId: listWebhooks
+      summary: List webhook endpoints
+      responses:
+        "200":
+          description: All endpoints.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookEndpoint" }
+  /v1/webhooks/{id}:
+    delete:
+      tags: [Webhooks]
+      operationId: disableWebhook
+      summary: Disable a webhook endpoint
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The disabled endpoint.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/webhooks/{id}/enable:
+    post:
+      tags: [Webhooks]
+      operationId: enableWebhook
+      summary: Re-enable a webhook endpoint
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The re-enabled endpoint.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpoint" }
+  /v1/webhooks/{id}/rotate-secret:
+    post:
+      tags: [Webhooks]
+      operationId: rotateWebhookSecret
+      summary: Rotate an endpoint's signing secret
+      description: >-
+        Issues a new signing secret, effective immediately and shown only once.
+        The endpoint keeps its id, URL and delivery history.
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The endpoint, with the new `secret` shown once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/WebhookEndpoint"
+                  - type: object
+                    properties:
+                      secret: { type: string, description: "New signing secret (whsec_...), shown only once." }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/webhooks/{id}/deliveries:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhookDeliveries
+      summary: List recent deliveries
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: Up to 50 recent deliveries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        event_type: { $ref: "#/components/schemas/WebhookEventType" }
+                        status: { type: string }
+                        attempts: { type: integer }
+                        delivered_at: { type: [string, "null"], format: date-time }
+                        created_at: { type: string, format: date-time }
+  /v1/webhooks/deliveries/{id}/replay:
+    post:
+      tags: [Webhooks]
+      operationId: replayWebhookDelivery
+      summary: Replay a delivery
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "201":
+          description: Replay queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  replay_of: { type: string, format: uuid }
+                  status: { type: string }
+
+  /v1/suppressions:
+    get:
+      tags: [Suppressions]
+      operationId: listSuppressions
+      summary: List suppressions
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 320 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: Suppressed addresses.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Suppression" }
+  /v1/suppressions/{address}:
+    get:
+      tags: [Suppressions]
+      operationId: getSuppression
+      summary: Look up one suppressed address
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The suppression.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Suppression" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/suppressions/removals:
+    post:
+      tags: [Suppressions]
+      operationId: requestSuppressionRemoval
+      summary: Request self-service removal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address: { type: string, minLength: 3, maxLength: 320 }
+                note: { type: string, maxLength: 1000 }
+      responses:
+        "201":
+          description: Removal request created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemovalRequest" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Suppressions]
+      operationId: listSuppressionRemovals
+      summary: List removal requests
+      responses:
+        "200":
+          description: Removal requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/RemovalRequest" }
+  /v1/suppressions/removals/{id}:
+    get:
+      tags: [Suppressions]
+      operationId: getSuppressionRemoval
+      summary: Get a removal request with timeline
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The removal request and its timeline.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RemovalRequest"
+                  - type: object
+                    properties:
+                      timeline:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            action: { type: string }
+                            actor: { type: string }
+                            at: { type: string, format: date-time }
+                            metadata: { type: [object, "null"], additionalProperties: true }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Suppressions]
+      operationId: cancelSuppressionRemoval
+      summary: Cancel a pending removal request
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: The cancelled request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemovalRequest" }
+        "404": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: "API key as a bearer token: `Authorization: Bearer sk_live_...`"
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PathIdOrName:
+      name: id
+      in: path
+      required: true
+      description: A UUID or the resource name.
+      schema: { type: string }
+  responses:
+    Error:
+      description: Error. Branch on `error.code`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Brand:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        public_name: { type: string }
+        logo_url: { type: string, nullable: true }
+        from_address: { type: string, nullable: true }
+        postal_address: { type: string, nullable: true }
+        timezone: { type: string }
+        created_at: { type: string, format: date-time }
+
+    SubscriberList:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        opt_in: { type: string, enum: [single, double] }
+        counts:
+          type: object
+          description: Membership by status. `subscribed` is who a campaign would reach.
+          properties:
+            subscribed: { type: integer }
+            unconfirmed: { type: integer }
+            unsubscribed: { type: integer }
+            bounced: { type: integer }
+            complained: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    Subscriber:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string, nullable: true }
+        attributes: { type: object, additionalProperties: true }
+        status:
+          type: string
+          enum: [subscribed, unconfirmed, unsubscribed, bounced, complained]
+          description: Status on THIS list. The same person may differ on another.
+        source: { type: string, enum: [form, import, api, manual] }
+        created_at: { type: string, format: date-time }
+
+    AddSubscriberResult:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        status: { type: string }
+        skipped_reason:
+          type: string
+          nullable: true
+          enum: [unsubscribed, brand_opt_out, bounced, complained, null]
+          description: >
+            Set when we deliberately did not change anything: this person opted
+            out or bounced previously and adding them again does not undo that.
+
+    ImportSummary:
+      type: object
+      properties:
+        imported: { type: integer }
+        updated: { type: integer }
+        invalid: { type: integer, description: Not a valid email address. }
+        skipped: { type: integer, description: Left alone (opt-out, bounce, duplicate in file). }
+        overCap: { type: integer, description: Dropped because the plan subscriber cap was reached. }
+        cap: { type: integer, nullable: true }
+        rejected:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string }
+              reason: { type: string }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, docs_url]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable error code.
+              enum:
+                - validation_error
+                - authentication_error
+                - authorization_error
+                - not_found
+                - rate_limit_exceeded
+                - idempotency_conflict
+                - domain_not_verified
+                - suppressed_recipient
+                - quota_exceeded
+                - payment_required
+                - content_flagged
+                - account_suspended
+                - unverified_recipient
+                - test_quota_exceeded
+                - limit_exceeded
+                - email_failed
+                - invalid_token
+                - internal_error
+                - service_unavailable
+                - not_suppressed
+                - not_removable
+                - cooldown_active
+                - duplicate_request
+                - expired_token
+            message: { type: string }
+            docs_url: { type: string, format: uri }
+    AddressList:
+      description: A single email address or an array of up to 50.
+      oneOf:
+        - type: string
+        - type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string }
+    EmailStatus:
+      type: string
+      enum: [queued, sent, delivered, bounced, complained, suppressed]
+    SendEmailRequest:
+      type: object
+      required: [from, to]
+      description: >
+        Provide at least one of `html`, `text`, or `template_id`. `subject` is
+        required unless `template_id` is set.
+      properties:
+        from:
+          type: string
+          minLength: 3
+          maxLength: 320
+          description: Sender, bare (`a@b.com`) or with display name (`Name <a@b.com>`). Domain must be verified for live keys.
+        to: { $ref: "#/components/schemas/AddressList" }
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 998
+          description: Required unless template_id is provided.
+        html: { type: string, minLength: 1, maxLength: 500000 }
+        text: { type: string, minLength: 1, maxLength: 500000 }
+        template_id:
+          type: string
+          maxLength: 256
+          description: Template UUID or name.
+        variables:
+          type: object
+          additionalProperties: true
+          description: Handlebars variables, used with template_id.
+        cc: { $ref: "#/components/schemas/AddressList" }
+        bcc: { $ref: "#/components/schemas/AddressList" }
+        reply_to: { $ref: "#/components/schemas/AddressList" }
+        attachments:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required: [filename, content, content_type]
+            properties:
+              filename: { type: string, minLength: 1, maxLength: 255 }
+              content: { type: string, description: Base64-encoded content (max ~7.5MB decoded). }
+              content_type: { type: string, minLength: 3, maxLength: 255 }
+              content_id:
+                type: string
+                maxLength: 200
+                description: >-
+                  Content-ID for an inline image. Reference it from the HTML as
+                  <img src="cid:VALUE">. Setting it implies disposition "inline".
+                  Surrounding angle brackets are optional and stripped.
+                example: logo@sendbyte
+              disposition:
+                type: string
+                enum: [attachment, inline]
+                description: >-
+                  Defaults to "inline" when content_id is set and "attachment"
+                  otherwise. Only needed to force a file that carries a
+                  Content-ID to still appear as a download.
+        tags:
+          type: array
+          maxItems: 10
+          items: { type: string, minLength: 1, maxLength: 64 }
+        headers:
+          type: object
+          additionalProperties: { type: string, maxLength: 4096 }
+          description: Custom headers. Message-ID cannot be overridden.
+        list_unsubscribe:
+          type: object
+          description: At least one of url/mailto required if present.
+          properties:
+            url: { type: string, format: uri, maxLength: 2048 }
+            mailto: { type: string }
+        scheduled_at:
+          type: string
+          format: date-time
+          description: ISO 8601 with offset. The email stays queued until this time.
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Replays return the original email (200); keys never expire. A different body with the same key is a 409.
+        tracking:
+          type: object
+          description: Per-message open/click tracking override.
+          properties:
+            opens: { type: boolean }
+            clicks: { type: boolean }
+    Email:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        from: { type: string }
+        to: { $ref: "#/components/schemas/AddressList" }
+        subject: { type: string }
+        status: { $ref: "#/components/schemas/EmailStatus" }
+        sandbox: { type: boolean }
+        tags: { type: array, items: { type: string } }
+        message_id: { type: [string, "null"] }
+        open_count: { type: integer }
+        click_count: { type: integer }
+        first_opened_at: { type: [string, "null"], format: date-time }
+        first_clicked_at: { type: [string, "null"], format: date-time }
+        scheduled_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+    EmailDetail:
+      allOf:
+        - $ref: "#/components/schemas/Email"
+        - type: object
+          properties:
+            html: { type: [string, "null"] }
+            text: { type: [string, "null"] }
+            events:
+              type: array
+              items:
+                type: object
+                properties:
+                  type: { type: string }
+                  payload: { type: object, additionalProperties: true }
+                  created_at: { type: string, format: date-time }
+    Domain:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        domain: { type: string }
+        status: { type: string, enum: [pending, verified] }
+        dkim_selector: { type: string }
+        dns_records:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              host: { type: string }
+              name: { type: string }
+              value: { type: string }
+              purpose: { type: string }
+              required: { type: boolean }
+        verified_at: { type: [string, "null"], format: date-time }
+        deliverability_ready: { type: boolean }
+        tracking:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            host: { type: [string, "null"] }
+            status: { type: string, enum: [off, pending, active] }
+        created_at: { type: string, format: date-time }
+    TemplateInput:
+      type: object
+      required: [name, subject]
+      description: Provide at least one of html, text, or mjml.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100, pattern: "^[a-zA-Z0-9-_]+$" }
+        subject: { type: string, minLength: 1, maxLength: 998 }
+        html: { type: string, minLength: 1 }
+        text: { type: string, minLength: 1 }
+        mjml: { type: string, minLength: 1 }
+    Template:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        subject: { type: string }
+        version: { type: integer }
+        format: { type: string, enum: [mjml, html, text] }
+        html: { type: [string, "null"] }
+        text: { type: [string, "null"] }
+        mjml: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RenderedTemplate:
+      type: object
+      properties:
+        subject: { type: string }
+        html: { type: [string, "null"] }
+        text: { type: [string, "null"] }
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string }
+        last4: { type: [string, "null"] }
+        scope: { type: string, enum: [send_only, read_only, full_access] }
+        mode: { type: string, enum: [live, test] }
+        last_used_at: { type: [string, "null"], format: date-time }
+        revoked: { type: boolean }
+        created_at: { type: string, format: date-time }
+    WebhookEventType:
+      type: string
+      enum:
+        - email.sent
+        - email.delivered
+        - email.opened
+        - email.clicked
+        - email.bounced
+        - email.complained
+        - email.unsubscribed
+        - email.failed
+        - domain.verified
+        - domain.degraded
+        - suppression.removal.requested
+        - suppression.removal.verified
+        - suppression.removal.completed
+        - suppression.removal.expired
+        - suppression.removal.failed
+        - suppression.removal.cancelled
+        - suppression.removal.reverted
+    WebhookEndpoint:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events:
+          description: Subscribed event types, or the string "all".
+          oneOf:
+            - type: string
+              enum: [all]
+            - type: array
+              items: { $ref: "#/components/schemas/WebhookEventType" }
+        disabled: { type: boolean }
+        disabled_at: { type: [string, "null"], format: date-time }
+        consecutive_failures: { type: integer }
+        created_at: { type: string, format: date-time }
+    Suppression:
+      type: object
+      properties:
+        address: { type: string }
+        reason: { type: string, description: e.g. hard_bounce, complaint }
+        source: { type: string, description: e.g. ses_bounce, ses_complaint }
+        created_at: { type: string, format: date-time }
+        eligible: { type: boolean }
+        eligible_reason: { type: [string, "null"] }
+        request:
+          type: [object, "null"]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string }
+    RemovalRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        address: { type: string }
+        reason: { type: string }
+        status: { type: string, enum: [pending_verification, removed, expired, failed, cancelled] }
+        note: { type: [string, "null"] }
+        source: { type: string, enum: [api, dashboard] }
+        verification_sends: { type: integer }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: [string, "null"], format: date-time }
+        verified_at: { type: [string, "null"], format: date-time }
+        removed_at: { type: [string, "null"], format: date-time }
+        cancelled_at: { type: [string, "null"], format: date-time }
