@@ -31,8 +31,8 @@ Acceptance criteria:
 
 - [x] Primary public APIs expose no OkHttp or Jackson type.
 - [x] Unknown response fields and future enum values do not break deserialization in the implemented email slice.
-- [ ] Path segments and queries follow the approved encoding rules, including Unicode and reserved-character tests.
-- [ ] Header handling is case-insensitive and supports required multi-value semantics.
+- [x] Path segments and queries follow the approved encoding rules, including Unicode and reserved-character tests.
+- [x] Header handling is case-insensitive and supports required multi-value semantics.
 - [ ] Default transport tests use a real local mock server for sync and async requests.
 - [ ] Response-body buffering/size and attachment behavior are documented and tested.
 

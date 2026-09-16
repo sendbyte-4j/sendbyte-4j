@@ -2,11 +2,12 @@ package africa.sendbyte.transport;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 /** Immutable, transport-neutral HTTP request. */
 public final class TransportRequest {
@@ -24,10 +25,16 @@ public final class TransportRequest {
             final Duration timeout) {
         this.method = Objects.requireNonNull(method, "method");
         this.uri = Objects.requireNonNull(uri, "uri");
-        final Map<String, List<String>> copiedHeaders = new LinkedHashMap<>();
-        headers.forEach((name, values) -> copiedHeaders.put(name, List.copyOf(values)));
+        final Map<String, List<String>> copiedHeaders = caseInsensitiveHeaders();
+        headers.forEach(
+                (name, values) ->
+                        copiedHeaders
+                                .computeIfAbsent(
+                                        Objects.requireNonNull(name, "header name"),
+                                        ignored -> new ArrayList<>())
+                                .addAll(List.copyOf(values)));
 
-        this.headers = Collections.unmodifiableMap(copiedHeaders);
+        this.headers = immutableHeaders(copiedHeaders);
         this.body = body == null ? new byte[0] : body.clone();
         this.timeout = Objects.requireNonNull(timeout, "timeout");
     }
@@ -50,5 +57,16 @@ public final class TransportRequest {
 
     public Duration timeout() {
         return this.timeout;
+    }
+
+    private static Map<String, List<String>> caseInsensitiveHeaders() {
+        return new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    }
+
+    private static Map<String, List<String>> immutableHeaders(
+            final Map<String, List<String>> headers) {
+        final Map<String, List<String>> copy = caseInsensitiveHeaders();
+        headers.forEach((name, values) -> copy.put(name, List.copyOf(values)));
+        return Collections.unmodifiableMap(copy);
     }
 }
