@@ -1,5 +1,7 @@
 package africa.sendbyte.exception;
 
+import africa.sendbyte.RequestDiagnostics;
+
 /** A non-success response returned by the SendByte API. */
 public class ApiException extends SendByteException {
     private static final long serialVersionUID = 1L;
@@ -15,6 +17,20 @@ public class ApiException extends SendByteException {
             final String documentationUrl,
             final String requestId) {
         super(message);
+        this.statusCode = statusCode;
+        this.code = code;
+        this.documentationUrl = documentationUrl;
+        this.requestId = requestId;
+    }
+
+    public ApiException(
+            final String message,
+            final int statusCode,
+            final String code,
+            final String documentationUrl,
+            final String requestId,
+            final RequestDiagnostics diagnostics) {
+        super(message, diagnostics);
         this.statusCode = statusCode;
         this.code = code;
         this.documentationUrl = documentationUrl;

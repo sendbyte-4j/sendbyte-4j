@@ -7,7 +7,11 @@ import africa.sendbyte.transport.JdkHttpTransport;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Framework-neutral entry point for SendByte product clients.
@@ -15,13 +19,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Instances are immutable and thread-safe. Create one and reuse it. Product modules adapt the
  * shared {@link #runtime()} rather than implementing their own authentication, HTTP, serialization,
  * or error handling.
+ *
+ * <p>The default transport buffers response bodies in memory and the runtime rejects responses
+ * above {@link #DEFAULT_MAX_RESPONSE_BODY_BYTES} unless overridden. Request payloads, including
+ * attachments represented by product modules, are serialized in memory by the core runtime.
  */
 public final class SendByteClient implements AutoCloseable {
     public static final URI DEFAULT_BASE_URI = URI.create("https://api.sendbyte.africa");
+    public static final long DEFAULT_MAX_RESPONSE_BODY_BYTES = 16L * 1024L * 1024L;
 
     private final ClientRuntime runtime;
     private final HttpTransport transport;
     private final ResourceOwnership transportOwnership;
+    private final ScheduledExecutorService retryExecutor;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private SendByteClient(final Builder builder) {
@@ -36,6 +46,7 @@ public final class SendByteClient implements AutoCloseable {
 
         this.transportOwnership =
                 builder.transport != null ? builder.transportOwnership : ResourceOwnership.CLIENT;
+        this.retryExecutor = newRetryExecutor();
 
         this.runtime =
                 new DefaultClientRuntime(
@@ -44,6 +55,10 @@ public final class SendByteClient implements AutoCloseable {
                         this.transport,
                         builder.requestTimeout,
                         builder.userAgent,
+                        builder.retryPolicy,
+                        builder.requestObserver,
+                        builder.maxResponseBodyBytes,
+                        this.retryExecutor,
                         this.closed);
     }
 
@@ -76,6 +91,9 @@ public final class SendByteClient implements AutoCloseable {
                 && this.transportOwnership == ResourceOwnership.CLIENT) {
             this.transport.close();
         }
+        if (this.closed.get()) {
+            this.retryExecutor.shutdownNow();
+        }
     }
 
     private static void validateCredentials(final String apiKey) {
@@ -103,6 +121,9 @@ public final class SendByteClient implements AutoCloseable {
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration requestTimeout = Duration.ofSeconds(30);
         private String userAgent = "sendbyte-java/0.1.0";
+        private RetryPolicy retryPolicy = RetryPolicy.DEFAULT;
+        private RequestObserver requestObserver = RequestObserver.NONE;
+        private long maxResponseBodyBytes = DEFAULT_MAX_RESPONSE_BODY_BYTES;
         private HttpTransport transport;
         private ResourceOwnership transportOwnership = ResourceOwnership.CALLER;
 
@@ -134,6 +155,25 @@ public final class SendByteClient implements AutoCloseable {
             return this;
         }
 
+        public Builder retryPolicy(final RetryPolicy retryPolicy) {
+            this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy");
+            return this;
+        }
+
+        public Builder requestObserver(final RequestObserver requestObserver) {
+            this.requestObserver = Objects.requireNonNull(requestObserver, "requestObserver");
+            return this;
+        }
+
+        /** Sets the maximum buffered response body size accepted by the runtime before decoding. */
+        public Builder maxResponseBodyBytes(final long maxResponseBodyBytes) {
+            if (maxResponseBodyBytes < 1L) {
+                throw new IllegalArgumentException("maxResponseBodyBytes must be positive");
+            }
+            this.maxResponseBodyBytes = maxResponseBodyBytes;
+            return this;
+        }
+
         public Builder userAgent(final String userAgent) {
             if (userAgent == null
                     || userAgent.trim().isEmpty()
@@ -155,6 +195,10 @@ public final class SendByteClient implements AutoCloseable {
             validateBaseUri(this.baseUri);
             positive(this.connectTimeout, "connectTimeout");
             positive(this.requestTimeout, "requestTimeout");
+            if (this.transport == null && this.connectTimeout.compareTo(this.requestTimeout) > 0) {
+                throw new IllegalArgumentException(
+                        "connectTimeout must not exceed requestTimeout for the default transport");
+            }
 
             return new SendByteClient(this);
         }
@@ -199,5 +243,17 @@ public final class SendByteClient implements AutoCloseable {
 
             return value;
         }
+    }
+
+    private static ScheduledExecutorService newRetryExecutor() {
+        final AtomicInteger count = new AtomicInteger();
+        final ThreadFactory threadFactory =
+                task -> {
+                    final Thread thread =
+                            new Thread(task, "sendbyte-runtime-" + count.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                };
+        return Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 }
