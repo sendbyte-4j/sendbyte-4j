@@ -18,10 +18,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -115,15 +115,15 @@ public final class DefaultClientRuntime implements ClientRuntime {
 
     private TransportRequest toTransportRequest(final ClientRequest request) {
         final byte[] body = request.body() == null ? new byte[0] : this.json.write(request.body());
-        final Map<String, List<String>> headers = new LinkedHashMap<>();
+        final Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-        request.headers().forEach((name, value) -> headers.put(name, Arrays.asList(value)));
-        headers.put("Authorization", Arrays.asList("Bearer " + this.currentApiKey()));
-        headers.put("Accept", Arrays.asList("application/json"));
-        headers.put("User-Agent", Arrays.asList(this.userAgent));
+        request.headers().forEach((name, values) -> headers.put(name, List.copyOf(values)));
+        headers.put("Authorization", Collections.singletonList("Bearer " + this.currentApiKey()));
+        headers.put("Accept", Collections.singletonList("application/json"));
+        headers.put("User-Agent", Collections.singletonList(this.userAgent));
 
         if (request.body() != null) {
-            headers.put("Content-Type", Arrays.asList("application/json"));
+            headers.put("Content-Type", Collections.singletonList("application/json"));
         }
 
         return new TransportRequest(
