@@ -1,5 +1,6 @@
 package africa.sendbyte.spi;
 
+import africa.sendbyte.RequestOptions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +14,8 @@ public final class ClientRequest {
     private final String method;
     private final String path;
     private final Map<String, List<String>> headers;
+    private final RequestOptions options;
+    private final boolean idempotencyProtected;
     private final Object body;
 
     private ClientRequest(final Builder builder) {
@@ -20,6 +23,8 @@ public final class ClientRequest {
         this.method = builder.method;
         this.path = builder.encodedPath();
         this.headers = immutableHeaders(builder.headers);
+        this.options = builder.options;
+        this.idempotencyProtected = builder.idempotencyProtected;
         this.body = builder.body;
     }
 
@@ -47,6 +52,14 @@ public final class ClientRequest {
         return this.headers;
     }
 
+    public RequestOptions options() {
+        return this.options;
+    }
+
+    public boolean idempotencyProtected() {
+        return this.idempotencyProtected;
+    }
+
     public Object body() {
         return this.body;
     }
@@ -58,6 +71,8 @@ public final class ClientRequest {
         private final List<String> pathSegments = new ArrayList<>();
         private final Map<String, List<String>> headers = caseInsensitiveHeaders();
         private final List<QueryParameter> queryParameters = new ArrayList<>();
+        private RequestOptions options = RequestOptions.DEFAULT;
+        private boolean idempotencyProtected;
         private Object body;
 
         private Builder(final String operation, final String method) {
@@ -102,6 +117,16 @@ public final class ClientRequest {
 
         public Builder body(final Object body) {
             this.body = body;
+            return this;
+        }
+
+        public Builder options(final RequestOptions options) {
+            this.options = Objects.requireNonNull(options, "options");
+            return this;
+        }
+
+        public Builder idempotencyProtected(final boolean idempotencyProtected) {
+            this.idempotencyProtected = idempotencyProtected;
             return this;
         }
 

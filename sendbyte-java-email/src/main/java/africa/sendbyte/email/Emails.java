@@ -17,14 +17,14 @@ public final class Emails {
     public Email send(final SendEmailRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return this.runtime.execute(sendRequest(request), EmailApiResponse.class).toEmail();
+        return runtime.execute(sendRequest(request), EmailApiResponse.class).toEmail();
     }
 
     public CompletableFuture<Email> sendAsync(final SendEmailRequest request) {
         Objects.requireNonNull(request, "request");
 
         final CompletableFuture<EmailApiResponse> source =
-                this.runtime.executeAsync(sendRequest(request), EmailApiResponse.class);
+                runtime.executeAsync(sendRequest(request), EmailApiResponse.class);
         final CompletableFuture<Email> result = new CompletableFuture<>();
 
         source.whenComplete(
@@ -50,6 +50,7 @@ public final class Emails {
 
     private static ClientRequest sendRequest(final SendEmailRequest request) {
         return ClientRequest.builder("email.send", "POST", "/v1/emails")
+                .idempotencyProtected(request.getIdempotencyKey() != null)
                 .body(SendEmailApiRequest.from(request))
                 .build();
     }

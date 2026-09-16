@@ -31,6 +31,17 @@ final class SendByteClientTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SendByteClient.builder().apiKey("key").requestTimeout(Duration.ZERO));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        SendByteClient.builder()
+                                .apiKey("key")
+                                .connectTimeout(Duration.ofSeconds(2))
+                                .requestTimeout(Duration.ofSeconds(1))
+                                .build());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SendByteClient.builder().apiKey("key").maxResponseBodyBytes(0));
     }
 
     @Test

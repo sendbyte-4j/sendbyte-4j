@@ -1,39 +1,36 @@
 package africa.sendbyte.internal;
 
 import africa.sendbyte.CredentialsProvider;
-import africa.sendbyte.exception.ApiException;
-import africa.sendbyte.exception.AuthenticationException;
-import africa.sendbyte.exception.AuthorizationException;
-import africa.sendbyte.exception.ConflictException;
+import africa.sendbyte.DetailedResponse;
+import africa.sendbyte.FailureCategory;
+import africa.sendbyte.RequestObserver;
+import africa.sendbyte.RetryPolicy;
 import africa.sendbyte.exception.ConnectionException;
-import africa.sendbyte.exception.NotFoundException;
-import africa.sendbyte.exception.RateLimitException;
-import africa.sendbyte.exception.ValidationException;
+import africa.sendbyte.exception.SendByteCancellationException;
+import africa.sendbyte.exception.SendByteException;
+import africa.sendbyte.exception.SendByteTimeoutException;
+import africa.sendbyte.exception.SerializationException;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import africa.sendbyte.transport.HttpTransport;
-import africa.sendbyte.transport.TransportRequest;
 import africa.sendbyte.transport.TransportResponse;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpTimeoutException;
+import java.time.Clock;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.DoubleSupplier;
 
 public final class DefaultClientRuntime implements ClientRuntime {
-    private final URI baseUri;
-    private final CredentialsProvider credentialsProvider;
     private final HttpTransport transport;
-    private final Duration requestTimeout;
-    private final String userAgent;
-    private final AtomicBoolean closed;
-    private final JacksonJsonCodec json = new JacksonJsonCodec();
+    private final ScheduledExecutorService executor;
+    private final ExecutionSupport support;
 
     public DefaultClientRuntime(
             final URI baseUri,
@@ -41,69 +38,190 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final HttpTransport transport,
             final Duration requestTimeout,
             final String userAgent,
+            final RetryPolicy retryPolicy,
+            final RequestObserver requestObserver,
+            final long maxResponseBodyBytes,
+            final ScheduledExecutorService executor,
             final AtomicBoolean closed) {
-        this.baseUri = baseUri;
-        this.credentialsProvider = credentialsProvider;
+        this(
+                baseUri,
+                credentialsProvider,
+                transport,
+                requestTimeout,
+                userAgent,
+                retryPolicy,
+                requestObserver,
+                maxResponseBodyBytes,
+                executor,
+                Clock.systemUTC(),
+                System::nanoTime,
+                delay -> TimeUnit.NANOSECONDS.sleep(delay.toNanos()),
+                Math::random,
+                closed);
+    }
+
+    DefaultClientRuntime(
+            final URI baseUri,
+            final CredentialsProvider credentialsProvider,
+            final HttpTransport transport,
+            final Duration requestTimeout,
+            final String userAgent,
+            final RetryPolicy retryPolicy,
+            final RequestObserver requestObserver,
+            final long maxResponseBodyBytes,
+            final ScheduledExecutorService executor,
+            final Clock clock,
+            final Ticker ticker,
+            final Sleeper sleeper,
+            final DoubleSupplier random,
+            final AtomicBoolean closed) {
+        final JacksonJsonCodec json = new JacksonJsonCodec();
+        final TransportRequestFactory requestFactory =
+                new TransportRequestFactory(baseUri, credentialsProvider, userAgent, json);
+        final DiagnosticsReporter diagnosticsReporter =
+                new DiagnosticsReporter(ticker, requestObserver);
+        final RetryPlanner retryPlanner = new RetryPlanner(retryPolicy, clock, random);
+
         this.transport = transport;
-        this.requestTimeout = requestTimeout;
-        this.userAgent = userAgent;
-        this.closed = closed;
+        this.executor = executor;
+        this.support =
+                new ExecutionSupport(
+                        requestTimeout,
+                        ticker,
+                        sleeper,
+                        closed,
+                        requestFactory,
+                        diagnosticsReporter,
+                        retryPlanner,
+                        new ApiExceptionMapper(json, retryPlanner, diagnosticsReporter),
+                        new ResponseProcessor(json, maxResponseBodyBytes, diagnosticsReporter));
     }
 
     @Override
     public <T> T execute(final ClientRequest request, final Class<T> responseType) {
-        this.ensureOpen();
+        return this.executeDetailed(request, responseType).value();
+    }
 
-        try {
-            return this.decode(
-                    this.transport.execute(this.toTransportRequest(request)), responseType);
-        } catch (final InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new ConnectionException("Interrupted while calling the SendByte API", exception);
-        } catch (final HttpTimeoutException exception) {
-            throw new ConnectionException("The SendByte API request timed out", exception);
-        } catch (final java.io.IOException exception) {
-            throw new ConnectionException("Could not reach the SendByte API", exception);
+    @Override
+    public <T> DetailedResponse<T> executeDetailed(
+            final ClientRequest request, final Class<T> responseType) {
+        this.support.ensureOpen();
+        final ExecutionState state = this.support.newState(request);
+
+        while (true) {
+            state.startAttempt();
+            this.support.ensureOpen();
+            this.support.ensureDeadline(state);
+
+            try {
+                final TransportResponse response =
+                        this.transport.execute(this.support.transportRequest(request, state));
+                final RetryAttempt retry = this.support.retryForResponse(request, response, state);
+                if (retry.retry()) {
+                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    continue;
+                }
+
+                return this.support.success(request, response, responseType, state);
+            } catch (final InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw this.support.failure(
+                        request,
+                        new SendByteCancellationException(
+                                "The SendByte API request was canceled",
+                                this.support.diagnostics(
+                                        request,
+                                        state,
+                                        null,
+                                        null,
+                                        FailureCategory.CANCELLATION,
+                                        false)),
+                        state,
+                        null,
+                        FailureCategory.CANCELLATION,
+                        false);
+            } catch (final HttpTimeoutException exception) {
+                final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+                if (retry.retry()) {
+                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    continue;
+                }
+                throw this.support.failure(
+                        request,
+                        new SendByteTimeoutException(
+                                "The SendByte API request timed out",
+                                exception,
+                                this.support.diagnostics(
+                                        request,
+                                        state,
+                                        null,
+                                        null,
+                                        FailureCategory.TIMEOUT,
+                                        false)),
+                        state,
+                        null,
+                        FailureCategory.TIMEOUT,
+                        false);
+            } catch (final IOException exception) {
+                final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+                if (retry.retry()) {
+                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    continue;
+                }
+                throw this.support.failure(
+                        request,
+                        new ConnectionException(
+                                "Could not reach the SendByte API",
+                                exception,
+                                this.support.diagnostics(
+                                        request,
+                                        state,
+                                        null,
+                                        null,
+                                        FailureCategory.CONNECTION,
+                                        false)),
+                        state,
+                        null,
+                        FailureCategory.CONNECTION,
+                        false);
+            } catch (final SerializationException exception) {
+                throw this.support.failure(
+                        request,
+                        new SerializationException(
+                                exception.getMessage(),
+                                exception,
+                                this.support.diagnostics(
+                                        request,
+                                        state,
+                                        null,
+                                        null,
+                                        FailureCategory.SERIALIZATION,
+                                        false)),
+                        state,
+                        null,
+                        FailureCategory.SERIALIZATION,
+                        false);
+            } catch (final SendByteException exception) {
+                throw exception;
+            }
         }
     }
 
     @Override
     public <T> CompletableFuture<T> executeAsync(
             final ClientRequest request, final Class<T> responseType) {
-        this.ensureOpen();
-
-        final TransportRequest transportRequest;
-        try {
-            transportRequest = this.toTransportRequest(request);
-        } catch (final RuntimeException failure) {
-            final CompletableFuture<T> failed = new CompletableFuture<>();
-            failed.completeExceptionally(failure);
-            return failed;
-        }
-
-        final CompletableFuture<TransportResponse> source =
-                this.transport.executeAsync(transportRequest);
         final CompletableFuture<T> result = new CompletableFuture<>();
-
-        source.whenComplete(
+        final CompletableFuture<DetailedResponse<T>> source =
+                this.executeDetailedAsync(request, responseType);
+        source.whenCompleteAsync(
                 (response, failure) -> {
                     if (failure != null) {
-                        final Throwable cause = unwrap(failure);
-                        result.completeExceptionally(
-                                cause instanceof ApiException
-                                        ? cause
-                                        : new ConnectionException(
-                                                "Could not reach the SendByte API", cause));
-                        return;
+                        result.completeExceptionally(unwrap(failure));
+                    } else {
+                        result.complete(response.value());
                     }
-
-                    try {
-                        result.complete(this.decode(response, responseType));
-                    } catch (final RuntimeException decodingFailure) {
-                        result.completeExceptionally(decodingFailure);
-                    }
-                });
-
+                },
+                this.executor);
         result.whenComplete(
                 (ignored, failure) -> {
                     if (result.isCancelled()) {
@@ -113,130 +231,135 @@ public final class DefaultClientRuntime implements ClientRuntime {
         return result;
     }
 
-    private TransportRequest toTransportRequest(final ClientRequest request) {
-        final byte[] body = request.body() == null ? new byte[0] : this.json.write(request.body());
-        final Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
-        request.headers().forEach((name, values) -> headers.put(name, List.copyOf(values)));
-        headers.put("Authorization", Collections.singletonList("Bearer " + this.currentApiKey()));
-        headers.put("Accept", Collections.singletonList("application/json"));
-        headers.put("User-Agent", Collections.singletonList(this.userAgent));
-
-        if (request.body() != null) {
-            headers.put("Content-Type", Collections.singletonList("application/json"));
-        }
-
-        return new TransportRequest(
-                request.method(),
-                this.baseUri.resolve(request.path()),
-                headers,
-                body,
-                this.requestTimeout);
+    @Override
+    public <T> CompletableFuture<DetailedResponse<T>> executeDetailedAsync(
+            final ClientRequest request, final Class<T> responseType) {
+        final AsyncOperation<T> operation = new AsyncOperation<>();
+        this.dispatchAsync(request, responseType, this.support.newState(request), operation);
+        return operation;
     }
 
-    private String currentApiKey() {
-        final String apiKey = this.credentialsProvider.apiKey();
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            throw new IllegalStateException("The credentials provider returned a blank API key");
-        }
+    private <T> void dispatchAsync(
+            final ClientRequest request,
+            final Class<T> responseType,
+            final ExecutionState state,
+            final AsyncOperation<T> operation) {
 
-        return apiKey;
+        if (operation.isCancelled()) return;
+
+        try {
+            this.support.ensureOpen();
+            this.support.ensureDeadline(state);
+            state.startAttempt();
+            final CompletableFuture<TransportResponse> current =
+                    this.transport.executeAsync(this.support.transportRequest(request, state));
+            operation.current(current);
+            current.whenCompleteAsync(
+                    (response, failure) -> {
+                        if (operation.isCancelled()) {
+                            current.cancel(true);
+                            return;
+                        }
+                        if (failure != null) {
+                            this.handleAsyncFailure(
+                                    request, responseType, state, operation, unwrap(failure));
+                        } else {
+                            this.handleAsyncResponse(
+                                    request, responseType, state, operation, response);
+                        }
+                    },
+                    this.executor);
+        } catch (final SendByteException exception) {
+            operation.completeExceptionally(exception);
+        } catch (final RuntimeException exception) {
+            operation.completeExceptionally(
+                    support.failure(
+                            request,
+                            new ConnectionException(
+                                    "Could not reach the SendByte API",
+                                    exception,
+                                    this.support.diagnostics(
+                                            request,
+                                            state,
+                                            null,
+                                            null,
+                                            FailureCategory.CONNECTION,
+                                            false)),
+                            state,
+                            null,
+                            FailureCategory.CONNECTION,
+                            false));
+        }
     }
 
-    private <T> T decode(final TransportResponse response, final Class<T> responseType) {
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            if (response.body().length == 0) {
-                return null;
+    private <T> void handleAsyncResponse(
+            final ClientRequest request,
+            final Class<T> responseType,
+            final ExecutionState state,
+            final AsyncOperation<T> operation,
+            final TransportResponse response) {
+        try {
+            final RetryAttempt retry = support.retryForResponse(request, response, state);
+            if (retry.retry()) {
+                operation.scheduled(
+                        this.executor.schedule(
+                                () -> this.dispatchAsync(request, responseType, state, operation),
+                                retry.delay().toNanos(),
+                                TimeUnit.NANOSECONDS));
+                return;
             }
-            return this.json.read(response.body(), responseType);
+            operation.complete(this.support.success(request, response, responseType, state));
+        } catch (final RuntimeException exception) {
+            operation.completeExceptionally(exception);
         }
-
-        throw this.apiFailure(response);
     }
 
-    private ApiException apiFailure(final TransportResponse response) {
-        ErrorEnvelope envelope = null;
+    private <T> void handleAsyncFailure(
+            final ClientRequest request,
+            final Class<T> responseType,
+            final ExecutionState state,
+            final AsyncOperation<T> operation,
+            final Throwable failure) {
         try {
-            envelope = this.json.read(response.body(), ErrorEnvelope.class);
-        } catch (final RuntimeException ignored) {
-            // Preserve a useful HTTP failure even when a proxy returned non-contract JSON.
-        }
+            final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+            if (retry.retry()) {
+                operation.scheduled(
+                        this.executor.schedule(
+                                () -> this.dispatchAsync(request, responseType, state, operation),
+                                retry.delay().toNanos(),
+                                TimeUnit.NANOSECONDS));
+                return;
+            }
 
-        final ErrorBody error = envelope == null ? null : envelope.error;
-        final String code = error == null ? null : error.code;
-        final String message =
-                error == null || error.message == null
-                        ? "SendByte API request failed with HTTP " + response.statusCode()
-                        : error.message;
-        final String docsUrl = error == null ? null : error.docsUrl;
-        final String requestId = response.firstHeader("x-request-id");
-
-        if ("validation_error".equals(code) || response.statusCode() == 422) {
-            return new ValidationException(
-                    message, response.statusCode(), code, docsUrl, requestId);
-        }
-        if ("authentication_error".equals(code) || response.statusCode() == 401) {
-            return new AuthenticationException(
-                    message, response.statusCode(), code, docsUrl, requestId);
-        }
-        if ("authorization_error".equals(code) || response.statusCode() == 403) {
-            return new AuthorizationException(
-                    message, response.statusCode(), code, docsUrl, requestId);
-        }
-        if ("not_found".equals(code) || response.statusCode() == 404) {
-            return new NotFoundException(message, response.statusCode(), code, docsUrl, requestId);
-        }
-        if ("idempotency_conflict".equals(code) || response.statusCode() == 409) {
-            return new ConflictException(message, response.statusCode(), code, docsUrl, requestId);
-        }
-        if ("rate_limit_exceeded".equals(code) || response.statusCode() == 429) {
-            return new RateLimitException(
-                    message,
-                    response.statusCode(),
-                    code,
-                    docsUrl,
-                    requestId,
-                    retryAfter(response.firstHeader("Retry-After")));
-        }
-        return new ApiException(message, response.statusCode(), code, docsUrl, requestId);
-    }
-
-    private static Duration retryAfter(final String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Duration.ofSeconds(Long.parseLong(value.trim()));
-        } catch (final NumberFormatException ignored) {
-            return null;
+            final FailureCategory category =
+                    failure instanceof HttpTimeoutException
+                            ? FailureCategory.TIMEOUT
+                            : FailureCategory.CONNECTION;
+            final SendByteException exception =
+                    category == FailureCategory.TIMEOUT
+                            ? new SendByteTimeoutException(
+                            "The SendByte API request timed out",
+                            failure,
+                            this.support.diagnostics(
+                                    request, state, null, null, category, false))
+                            : new ConnectionException(
+                            "Could not reach the SendByte API",
+                            failure,
+                            this.support.diagnostics(
+                                    request, state, null, null, category, false));
+            operation.completeExceptionally(
+                    support.failure(request, exception, state, null, category, false));
+        } catch (final RuntimeException exception) {
+            operation.completeExceptionally(exception);
         }
     }
 
     private static Throwable unwrap(final Throwable failure) {
         Throwable current = failure;
-        while ((current instanceof CompletionException
-                        || current instanceof java.util.concurrent.ExecutionException)
+        while ((current instanceof CompletionException || current instanceof ExecutionException)
                 && current.getCause() != null) {
             current = current.getCause();
         }
         return current;
-    }
-
-    private void ensureOpen() {
-        if (this.closed.get()) {
-            throw new IllegalStateException("SendByteClient is closed");
-        }
-    }
-
-    public static final class ErrorEnvelope {
-        public ErrorBody error;
-    }
-
-    public static final class ErrorBody {
-        public String code;
-        public String message;
-
-        @JsonProperty("docs_url")
-        public String docsUrl;
     }
 }
