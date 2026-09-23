@@ -146,12 +146,12 @@ public final class DefaultClientRuntime implements ClientRuntime {
                     this.support.sleepBeforeRetry(retry.delay(), state);
                     continue;
                 }
-                throw this.support.failure(
+                throw support.failure(
                         request,
                         new SendByteTimeoutException(
                                 "The SendByte API request timed out",
                                 exception,
-                                this.support.diagnostics(
+                                support.diagnostics(
                                         request,
                                         state,
                                         null,
@@ -338,15 +338,15 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final SendByteException exception =
                     category == FailureCategory.TIMEOUT
                             ? new SendByteTimeoutException(
-                            "The SendByte API request timed out",
-                            failure,
-                            this.support.diagnostics(
-                                    request, state, null, null, category, false))
+                                    "The SendByte API request timed out",
+                                    failure,
+                                    this.support.diagnostics(
+                                            request, state, null, null, category, false))
                             : new ConnectionException(
-                            "Could not reach the SendByte API",
-                            failure,
-                            this.support.diagnostics(
-                                    request, state, null, null, category, false));
+                                    "Could not reach the SendByte API",
+                                    failure,
+                                    this.support.diagnostics(
+                                            request, state, null, null, category, false));
             operation.completeExceptionally(
                     support.failure(request, exception, state, null, category, false));
         } catch (final RuntimeException exception) {

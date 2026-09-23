@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import java.util.Locale;
+
 /** Current delivery status returned for an email. */
 public enum EmailStatus {
     QUEUED,
@@ -9,6 +11,10 @@ public enum EmailStatus {
     COMPLAINED,
     SUPPRESSED,
     UNKNOWN;
+
+    String wireValue() {
+        return this.name().toLowerCase(Locale.ROOT);
+    }
 
     static EmailStatus fromWire(final String value) {
         if (value == null) {
