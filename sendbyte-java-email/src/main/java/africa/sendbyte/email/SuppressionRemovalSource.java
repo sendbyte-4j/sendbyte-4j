@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Source that created a suppression removal request. */
 public enum SuppressionRemovalSource {
     API,

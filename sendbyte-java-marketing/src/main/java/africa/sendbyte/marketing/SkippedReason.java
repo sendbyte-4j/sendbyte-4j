@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Reason an add-subscriber call deliberately left an address unchanged. */
 public enum SkippedReason {
     UNSUBSCRIBED("unsubscribed"),

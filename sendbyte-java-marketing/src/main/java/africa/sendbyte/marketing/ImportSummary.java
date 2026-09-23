@@ -1,5 +1,6 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.List;
 
 /** Summary returned after importing subscribers. */

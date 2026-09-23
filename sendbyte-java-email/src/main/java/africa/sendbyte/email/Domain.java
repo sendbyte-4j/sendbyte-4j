@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import java.time.OffsetDateTime;
 import java.util.List;
 

@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Filters for listing marketing subscribers. */
 public final class ListSubscribersRequest {
     private final String query;

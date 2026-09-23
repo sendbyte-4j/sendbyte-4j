@@ -1,5 +1,6 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 final class BrandApiResponse {

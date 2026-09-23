@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 final class SuppressionApiResponse {

@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Verification state returned for a sending domain. */
 public enum DomainStatus {
     PENDING,

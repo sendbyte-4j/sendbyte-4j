@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Tracking DNS state for a sending domain. */
 public enum DomainTrackingStatus {
     OFF,

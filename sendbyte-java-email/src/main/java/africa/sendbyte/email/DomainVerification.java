@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.List;
 
 /** Result returned after requesting domain verification. */

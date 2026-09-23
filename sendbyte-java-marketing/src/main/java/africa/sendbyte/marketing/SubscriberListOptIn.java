@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Opt-in policy for a marketing subscriber list. */
 public enum SubscriberListOptIn {
     SINGLE("single"),

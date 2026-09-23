@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Request used to create a subscriber list under a brand. */
 public final class CreateSubscriberListRequest {
     private final String name;
