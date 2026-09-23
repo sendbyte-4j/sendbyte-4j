@@ -143,6 +143,16 @@ final class EmailsTest {
     }
 
     @Test
+    void propagatesAsyncCancellationFromMappedOperations() {
+        final PendingTransport transport = new PendingTransport();
+        final CompletableFuture<EmailDetail> get = new Emails(client(transport)).getAsync("em_1");
+
+        assertTrue(get.cancel(true));
+
+        assertTrue(transport.pending.isCancelled());
+    }
+
+    @Test
     void defaultJdkTransportPerformsRealLocalHttpRequest() throws Exception {
         final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         final AtomicReference<String> authorization = new AtomicReference<>();

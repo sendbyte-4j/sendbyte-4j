@@ -20,8 +20,6 @@ import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.DoubleSupplier;
@@ -212,25 +210,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
     @Override
     public <T> CompletableFuture<T> executeAsync(
             final ClientRequest request, final Class<T> responseType) {
-        final CompletableFuture<T> result = new CompletableFuture<>();
-        final CompletableFuture<DetailedResponse<T>> source =
-                this.executeDetailedAsync(request, responseType);
-        source.whenCompleteAsync(
-                (response, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(unwrap(failure));
-                    } else {
-                        result.complete(response.value());
-                    }
-                },
-                this.executor);
-        result.whenComplete(
-                (ignored, failure) -> {
-                    if (result.isCancelled()) {
-                        source.cancel(true);
-                    }
-                });
-        return result;
+        return AsyncSupport.map(
+                this.executeDetailedAsync(request, responseType), DetailedResponse::value);
     }
 
     @Override
@@ -266,7 +247,11 @@ public final class DefaultClientRuntime implements ClientRuntime {
                         }
                         if (failure != null) {
                             this.handleAsyncFailure(
-                                    request, responseType, state, operation, unwrap(failure));
+                                    request,
+                                    responseType,
+                                    state,
+                                    operation,
+                                    AsyncSupport.unwrap(failure));
                         } else {
                             this.handleAsyncResponse(
                                     request, responseType, state, operation, response);
@@ -356,14 +341,5 @@ public final class DefaultClientRuntime implements ClientRuntime {
         } catch (final RuntimeException exception) {
             operation.completeExceptionally(exception);
         }
-    }
-
-    private static Throwable unwrap(final Throwable failure) {
-        Throwable current = failure;
-        while ((current instanceof CompletionException || current instanceof ExecutionException)
-                && current.getCause() != null) {
-            current = current.getCause();
-        }
-        return current;
     }
 }

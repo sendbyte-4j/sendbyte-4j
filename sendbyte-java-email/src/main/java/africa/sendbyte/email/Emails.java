@@ -3,6 +3,7 @@ package africa.sendbyte.email;
 import africa.sendbyte.DetailedResponse;
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
@@ -25,29 +26,9 @@ public final class Emails {
     public CompletableFuture<Email> sendAsync(final SendEmailRequest request) {
         Objects.requireNonNull(request, "request");
 
-        final CompletableFuture<EmailApiResponse> source =
-                runtime.executeAsync(sendRequest(request), EmailApiResponse.class);
-        final CompletableFuture<Email> result = new CompletableFuture<>();
-
-        source.whenComplete(
-                (wire, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(failure);
-                    } else {
-                        try {
-                            result.complete(wire.toEmail());
-                        } catch (final RuntimeException mappingFailure) {
-                            result.completeExceptionally(mappingFailure);
-                        }
-                    }
-                });
-        result.whenComplete(
-                (ignored, failure) -> {
-                    if (result.isCancelled()) {
-                        source.cancel(true);
-                    }
-                });
-        return result;
+        return AsyncSupport.map(
+                runtime.executeAsync(sendRequest(request), EmailApiResponse.class),
+                EmailApiResponse::toEmail);
     }
 
     public EmailDetail get(final String id) {
@@ -55,9 +36,9 @@ public final class Emails {
     }
 
     public CompletableFuture<EmailDetail> getAsync(final String id) {
-        final CompletableFuture<EmailApiResponse> source =
-                runtime.executeAsync(getRequest(id), EmailApiResponse.class);
-        return source.thenApply(EmailApiResponse::toEmailDetail);
+        return AsyncSupport.map(
+                runtime.executeAsync(getRequest(id), EmailApiResponse.class),
+                EmailApiResponse::toEmailDetail);
     }
 
     public Page<Email> list(final ListEmailsRequest request) {
@@ -69,8 +50,9 @@ public final class Emails {
     public CompletableFuture<Page<Email>> listAsync(final ListEmailsRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(listRequest(request), EmailPageApiResponse.class)
-                .thenApply(EmailPageApiResponse::toPage);
+        return AsyncSupport.map(
+                runtime.executeAsync(listRequest(request), EmailPageApiResponse.class),
+                EmailPageApiResponse::toPage);
     }
 
     public EmailExport export(final ExportEmailsRequest request) {
@@ -84,8 +66,9 @@ public final class Emails {
     public CompletableFuture<EmailExport> exportAsync(final ExportEmailsRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeDetailedAsync(exportRequest(request), byte[].class)
-                .thenApply(response -> new EmailExport(response.value(), response.metadata()));
+        return AsyncSupport.map(
+                runtime.executeDetailedAsync(exportRequest(request), byte[].class),
+                response -> new EmailExport(response.value(), response.metadata()));
     }
 
     private static ClientRequest sendRequest(final SendEmailRequest request) {

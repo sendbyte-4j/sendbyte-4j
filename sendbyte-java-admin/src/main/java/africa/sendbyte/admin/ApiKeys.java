@@ -2,6 +2,7 @@ package africa.sendbyte.admin;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
@@ -27,10 +28,11 @@ public final class ApiKeys {
     public CompletableFuture<ApiKey> createAsync(final CreateApiKeyRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         collectionRequest("api_key.create", "POST", ApiKeyApiRequest.from(request)),
-                        ApiKeyApiResponse.class)
-                .thenApply(ApiKeyApiResponse::toApiKey);
+                        ApiKeyApiResponse.class),
+                ApiKeyApiResponse::toApiKey);
     }
 
     public Page<ApiKey> list() {
@@ -40,9 +42,11 @@ public final class ApiKeys {
     }
 
     public CompletableFuture<Page<ApiKey>> listAsync() {
-        return runtime.executeAsync(
-                        collectionRequest("api_key.list", "GET", null), ApiKeyPageApiResponse.class)
-                .thenApply(ApiKeyPageApiResponse::toPage);
+        return AsyncSupport.map(
+                runtime.executeAsync(
+                        collectionRequest("api_key.list", "GET", null),
+                        ApiKeyPageApiResponse.class),
+                ApiKeyPageApiResponse::toPage);
     }
 
     public ApiKey rename(final String id, final String name) {
@@ -53,10 +57,11 @@ public final class ApiKeys {
     }
 
     public CompletableFuture<ApiKey> renameAsync(final String id, final String name) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         itemRequest("api_key.rename", "PATCH", id, ApiKeyApiRequest.rename(name)),
-                        ApiKeyApiResponse.class)
-                .thenApply(ApiKeyApiResponse::toApiKey);
+                        ApiKeyApiResponse.class),
+                ApiKeyApiResponse::toApiKey);
     }
 
     public ApiKey revoke(final String id) {
@@ -66,9 +71,10 @@ public final class ApiKeys {
     }
 
     public CompletableFuture<ApiKey> revokeAsync(final String id) {
-        return runtime.executeAsync(
-                        itemRequest("api_key.revoke", "DELETE", id, null), ApiKeyApiResponse.class)
-                .thenApply(ApiKeyApiResponse::toApiKey);
+        return AsyncSupport.map(
+                runtime.executeAsync(
+                        itemRequest("api_key.revoke", "DELETE", id, null), ApiKeyApiResponse.class),
+                ApiKeyApiResponse::toApiKey);
     }
 
     private static ClientRequest collectionRequest(
