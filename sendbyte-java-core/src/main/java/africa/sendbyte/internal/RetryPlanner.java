@@ -12,6 +12,8 @@ import java.util.Locale;
 import java.util.function.DoubleSupplier;
 
 final class RetryPlanner {
+    private static final Duration MAX_NANOS = Duration.ofNanos(Long.MAX_VALUE);
+
     private final RetryPolicy retryPolicy;
     private final Clock clock;
     private final DoubleSupplier random;
@@ -56,9 +58,8 @@ final class RetryPlanner {
 
         final long exponent = 1L << Math.min(30, attemptCount - 1);
         final Duration capped =
-                cap(
-                        multiply(this.retryPolicy.initialBackoff(), exponent),
-                        this.retryPolicy.maxBackoff());
+                cappedBackoff(
+                        this.retryPolicy.initialBackoff(), this.retryPolicy.maxBackoff(), exponent);
         if (this.retryPolicy.jitterRatio() == 0.0d || capped.isZero()) {
             return capped;
         }
@@ -114,11 +115,29 @@ final class RetryPlanner {
         return value.compareTo(maximum) > 0 ? maximum : value;
     }
 
-    private static Duration multiply(final Duration duration, final long factor) {
-        if (duration.isZero() || factor == 0L) {
+    /**
+     * Returns {@code initialBackoff * exponent} limited to {@code maximum}.
+     *
+     * <p>The factor is bounded by the ratio to the cap before multiplying, because the product can
+     * leave the range of {@link Duration} nanoseconds: doubling thirty times already exceeds it for
+     * any backoff of a few seconds. A backoff or cap that cannot be expressed in nanoseconds at all
+     * is reported as the cap, which is where the backoff saturates anyway.
+     */
+    private static Duration cappedBackoff(
+            final Duration initialBackoff, final Duration maximum, final long exponent) {
+        if (initialBackoff.isZero()) {
             return Duration.ZERO;
         }
-        return Duration.ofNanos(Math.multiplyExact(duration.toNanos(), factor));
+        if (initialBackoff.compareTo(MAX_NANOS) >= 0 || maximum.compareTo(MAX_NANOS) >= 0) {
+            return maximum;
+        }
+
+        final long initialNanos = initialBackoff.toNanos();
+        final long maximumNanos = maximum.toNanos();
+        if (exponent > maximumNanos / initialNanos) {
+            return maximum;
+        }
+        return Duration.ofNanos(initialNanos * exponent);
     }
 
     private static Duration multiply(final Duration duration, final double factor) {
