@@ -2,6 +2,7 @@ package africa.sendbyte.marketing;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.internal.WireSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
@@ -24,10 +25,11 @@ public final class Marketing {
     }
 
     public CompletableFuture<BrandPage> listBrandsAsync() {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         brandsRequest("marketing.brands.list", "GET", null),
-                        BrandPageApiResponse.class)
-                .thenApply(BrandPageApiResponse::toBrandPage);
+                        BrandPageApiResponse.class),
+                BrandPageApiResponse::toBrandPage);
     }
 
     public Brand createBrand(final CreateBrandRequest request) {
@@ -43,11 +45,12 @@ public final class Marketing {
     public CompletableFuture<Brand> createBrandAsync(final CreateBrandRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         brandsRequest(
                                 "marketing.brands.create", "POST", BrandApiRequest.from(request)),
-                        BrandApiResponse.class)
-                .thenApply(BrandApiResponse::toBrand);
+                        BrandApiResponse.class),
+                BrandApiResponse::toBrand);
     }
 
     public Page<SubscriberList> listSubscriberLists(final String brandId) {
@@ -58,10 +61,11 @@ public final class Marketing {
     }
 
     public CompletableFuture<Page<SubscriberList>> listSubscriberListsAsync(final String brandId) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         listsRequest("marketing.lists.list", "GET", brandId, null),
-                        SubscriberListPageApiResponse.class)
-                .thenApply(SubscriberListPageApiResponse::toPage);
+                        SubscriberListPageApiResponse.class),
+                SubscriberListPageApiResponse::toPage);
     }
 
     public SubscriberList createSubscriberList(
@@ -82,14 +86,15 @@ public final class Marketing {
             final String brandId, final CreateSubscriberListRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         listsRequest(
                                 "marketing.lists.create",
                                 "POST",
                                 brandId,
                                 SubscriberListApiRequest.from(request)),
-                        SubscriberListApiResponse.class)
-                .thenApply(SubscriberListApiResponse::toSubscriberList);
+                        SubscriberListApiResponse.class),
+                SubscriberListApiResponse::toSubscriberList);
     }
 
     public SubscriberPage listSubscribers(
@@ -112,7 +117,8 @@ public final class Marketing {
             final String brandId, final String listId, final ListSubscribersRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         subscribersRequest(
                                 "marketing.subscribers.list",
                                 "GET",
@@ -120,8 +126,8 @@ public final class Marketing {
                                 listId,
                                 request,
                                 null),
-                        SubscriberPageApiResponse.class)
-                .thenApply(SubscriberPageApiResponse::toSubscriberPage);
+                        SubscriberPageApiResponse.class),
+                SubscriberPageApiResponse::toSubscriberPage);
     }
 
     public AddSubscriberResult addSubscriber(
@@ -144,7 +150,8 @@ public final class Marketing {
             final String brandId, final String listId, final AddSubscriberRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         subscribersRequest(
                                 "marketing.subscribers.add",
                                 "POST",
@@ -152,8 +159,8 @@ public final class Marketing {
                                 listId,
                                 null,
                                 SubscriberApiRequest.from(request)),
-                        AddSubscriberResultApiResponse.class)
-                .thenApply(AddSubscriberResultApiResponse::toAddSubscriberResult);
+                        AddSubscriberResultApiResponse.class),
+                AddSubscriberResultApiResponse::toAddSubscriberResult);
     }
 
     public ImportSummary importSubscribers(
@@ -170,10 +177,11 @@ public final class Marketing {
             final String brandId, final String listId, final ImportSubscribersRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         importRequest(brandId, listId, ImportSubscribersApiRequest.from(request)),
-                        ImportSummaryApiResponse.class)
-                .thenApply(ImportSummaryApiResponse::toImportSummary);
+                        ImportSummaryApiResponse.class),
+                ImportSummaryApiResponse::toImportSummary);
     }
 
     private static ClientRequest brandsRequest(

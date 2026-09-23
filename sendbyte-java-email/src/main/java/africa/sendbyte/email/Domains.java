@@ -2,6 +2,7 @@ package africa.sendbyte.email;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
@@ -24,8 +25,9 @@ public final class Domains {
     public CompletableFuture<Domain> createAsync(final CreateDomainRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(createRequest(request), DomainApiResponse.class)
-                .thenApply(DomainApiResponse::toDomain);
+        return AsyncSupport.map(
+                runtime.executeAsync(createRequest(request), DomainApiResponse.class),
+                DomainApiResponse::toDomain);
     }
 
     public Page<Domain> list() {
@@ -33,8 +35,9 @@ public final class Domains {
     }
 
     public CompletableFuture<Page<Domain>> listAsync() {
-        return runtime.executeAsync(listRequest(), DomainPageApiResponse.class)
-                .thenApply(DomainPageApiResponse::toPage);
+        return AsyncSupport.map(
+                runtime.executeAsync(listRequest(), DomainPageApiResponse.class),
+                DomainPageApiResponse::toPage);
     }
 
     public Domain get(final String id) {
@@ -43,8 +46,9 @@ public final class Domains {
     }
 
     public CompletableFuture<Domain> getAsync(final String id) {
-        return runtime.executeAsync(itemRequest("domain.get", "GET", id), DomainApiResponse.class)
-                .thenApply(DomainApiResponse::toDomain);
+        return AsyncSupport.map(
+                runtime.executeAsync(itemRequest("domain.get", "GET", id), DomainApiResponse.class),
+                DomainApiResponse::toDomain);
     }
 
     public void delete(final String id) {
@@ -61,8 +65,9 @@ public final class Domains {
     }
 
     public CompletableFuture<DomainVerification> verifyAsync(final String id) {
-        return runtime.executeAsync(verifyRequest(id), DomainVerificationApiResponse.class)
-                .thenApply(DomainVerificationApiResponse::toVerification);
+        return AsyncSupport.map(
+                runtime.executeAsync(verifyRequest(id), DomainVerificationApiResponse.class),
+                DomainVerificationApiResponse::toVerification);
     }
 
     public Domain setTracking(final String id, final boolean enabled) {
@@ -70,8 +75,9 @@ public final class Domains {
     }
 
     public CompletableFuture<Domain> setTrackingAsync(final String id, final boolean enabled) {
-        return runtime.executeAsync(trackingRequest(id, enabled), DomainApiResponse.class)
-                .thenApply(DomainApiResponse::toDomain);
+        return AsyncSupport.map(
+                runtime.executeAsync(trackingRequest(id, enabled), DomainApiResponse.class),
+                DomainApiResponse::toDomain);
     }
 
     private static ClientRequest createRequest(final CreateDomainRequest request) {

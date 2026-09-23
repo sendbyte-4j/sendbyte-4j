@@ -2,6 +2,7 @@ package africa.sendbyte.webhooks;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.internal.WireSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
@@ -29,11 +30,12 @@ public final class Webhooks {
     public CompletableFuture<WebhookEndpoint> createAsync(final CreateWebhookRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         collectionRequest(
                                 "webhook.create", "POST", WebhookCreateApiRequest.from(request)),
-                        WebhookEndpointApiResponse.class)
-                .thenApply(WebhookEndpointApiResponse::toWebhookEndpoint);
+                        WebhookEndpointApiResponse.class),
+                WebhookEndpointApiResponse::toWebhookEndpoint);
     }
 
     public Page<WebhookEndpoint> list() {
@@ -44,10 +46,11 @@ public final class Webhooks {
     }
 
     public CompletableFuture<Page<WebhookEndpoint>> listAsync() {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         collectionRequest("webhook.list", "GET", null),
-                        WebhookEndpointPageApiResponse.class)
-                .thenApply(WebhookEndpointPageApiResponse::toPage);
+                        WebhookEndpointPageApiResponse.class),
+                WebhookEndpointPageApiResponse::toPage);
     }
 
     public WebhookEndpoint disable(final String id) {
@@ -58,10 +61,11 @@ public final class Webhooks {
     }
 
     public CompletableFuture<WebhookEndpoint> disableAsync(final String id) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         itemRequest("webhook.disable", "DELETE", id, null),
-                        WebhookEndpointApiResponse.class)
-                .thenApply(WebhookEndpointApiResponse::toWebhookEndpoint);
+                        WebhookEndpointApiResponse.class),
+                WebhookEndpointApiResponse::toWebhookEndpoint);
     }
 
     public WebhookEndpoint enable(final String id) {
@@ -70,8 +74,9 @@ public final class Webhooks {
     }
 
     public CompletableFuture<WebhookEndpoint> enableAsync(final String id) {
-        return runtime.executeAsync(enableRequest(id), WebhookEndpointApiResponse.class)
-                .thenApply(WebhookEndpointApiResponse::toWebhookEndpoint);
+        return AsyncSupport.map(
+                runtime.executeAsync(enableRequest(id), WebhookEndpointApiResponse.class),
+                WebhookEndpointApiResponse::toWebhookEndpoint);
     }
 
     public WebhookEndpoint rotateSecret(final String id) {
@@ -80,8 +85,9 @@ public final class Webhooks {
     }
 
     public CompletableFuture<WebhookEndpoint> rotateSecretAsync(final String id) {
-        return runtime.executeAsync(rotateSecretRequest(id), WebhookEndpointApiResponse.class)
-                .thenApply(WebhookEndpointApiResponse::toWebhookEndpoint);
+        return AsyncSupport.map(
+                runtime.executeAsync(rotateSecretRequest(id), WebhookEndpointApiResponse.class),
+                WebhookEndpointApiResponse::toWebhookEndpoint);
     }
 
     public Page<WebhookDelivery> listDeliveries(final String id) {
@@ -90,8 +96,9 @@ public final class Webhooks {
     }
 
     public CompletableFuture<Page<WebhookDelivery>> listDeliveriesAsync(final String id) {
-        return runtime.executeAsync(deliveriesRequest(id), WebhookDeliveryPageApiResponse.class)
-                .thenApply(WebhookDeliveryPageApiResponse::toPage);
+        return AsyncSupport.map(
+                runtime.executeAsync(deliveriesRequest(id), WebhookDeliveryPageApiResponse.class),
+                WebhookDeliveryPageApiResponse::toPage);
     }
 
     public WebhookReplay replayDelivery(final String id) {
@@ -99,8 +106,9 @@ public final class Webhooks {
     }
 
     public CompletableFuture<WebhookReplay> replayDeliveryAsync(final String id) {
-        return runtime.executeAsync(replayRequest(id), WebhookReplayApiResponse.class)
-                .thenApply(WebhookReplayApiResponse::toWebhookReplay);
+        return AsyncSupport.map(
+                runtime.executeAsync(replayRequest(id), WebhookReplayApiResponse.class),
+                WebhookReplayApiResponse::toWebhookReplay);
     }
 
     private static ClientRequest collectionRequest(
