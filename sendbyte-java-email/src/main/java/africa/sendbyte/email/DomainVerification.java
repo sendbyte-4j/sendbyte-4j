@@ -12,7 +12,8 @@ public final class DomainVerification {
     private final List<DnsRecord> checks;
     private final boolean sesVerified;
     private final boolean deliverabilityReady;
-    private final DomainTracking tracking;
+    private final DomainTrackingStatus tracking;
+    private final String rawTracking;
 
     DomainVerification(
             final String id,
@@ -21,7 +22,7 @@ public final class DomainVerification {
             final List<DnsRecord> checks,
             final boolean sesVerified,
             final boolean deliverabilityReady,
-            final DomainTracking tracking) {
+            final String rawTracking) {
         this.id = id;
         this.domain = domain;
         this.status = DomainStatus.fromWire(rawStatus);
@@ -29,7 +30,8 @@ public final class DomainVerification {
         this.checks = WireSupport.immutable(checks);
         this.sesVerified = sesVerified;
         this.deliverabilityReady = deliverabilityReady;
-        this.tracking = tracking;
+        this.tracking = DomainTrackingStatus.fromWire(rawTracking);
+        this.rawTracking = rawTracking;
     }
 
     public String id() {
@@ -60,7 +62,18 @@ public final class DomainVerification {
         return this.deliverabilityReady;
     }
 
-    public DomainTracking tracking() {
+    /**
+     * Tracking state reported by the verification response.
+     *
+     * <p>The verification response reports only the tracking status. The {@code Domain} resource
+     * reports the full {@link DomainTracking} configuration.
+     */
+    public DomainTrackingStatus tracking() {
         return this.tracking;
+    }
+
+    /** The tracking value exactly as it appeared on the wire. */
+    public String rawTracking() {
+        return this.rawTracking;
     }
 }
