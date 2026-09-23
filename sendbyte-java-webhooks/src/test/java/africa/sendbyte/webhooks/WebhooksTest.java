@@ -29,11 +29,13 @@ final class WebhooksTest {
                         stub(
                                 201,
                                 endpointJson(
-                                        "wh_1", "[\"email.sent\",\"future.event\"]", "whsec_once")),
+                                        "wh_1",
+                                        "[\"email.sent\",\"future.event\"]",
+                                        "whsec_test_once")),
                         stub(200, "{\"data\":[" + endpointJson("wh_2", "\"all\"", null) + "]}"),
                         stub(200, endpointJson("wh_1", "[\"email.delivered\"]", null)),
                         stub(200, endpointJson("wh_1", "\"all\"", null)),
-                        stub(200, endpointJson("wh_1", "\"all\"", "whsec_rotated")),
+                        stub(200, endpointJson("wh_1", "\"all\"", "whsec_test_rotated")),
                         stub(
                                 200,
                                 "{\"data\":[{\"id\":\"del_1\",\"event_type\":\"future.event\","
@@ -64,8 +66,8 @@ final class WebhooksTest {
         assertEquals(WebhookEventType.EMAIL_SENT, created.events().get(0));
         assertEquals(WebhookEventType.UNKNOWN, created.events().get(1));
         assertEquals("future.event", created.rawEvents().get(1));
-        assertEquals("whsec_once", created.secret());
-        assertFalse(created.toString().contains("whsec_once"), created.toString());
+        assertEquals("whsec_test_once", created.secret());
+        assertFalse(created.toString().contains("whsec_test_once"), created.toString());
         assertTrue(listed.data().get(0).subscribesToAllEvents());
         assertEquals(
                 "https://api.test/v1/webhooks/wh%2Fid", transport.requests.get(2).uri().toString());
@@ -75,7 +77,7 @@ final class WebhooksTest {
         assertEquals(
                 "https://api.test/v1/webhooks/wh%2Fid/rotate-secret",
                 transport.requests.get(4).uri().toString());
-        assertEquals("whsec_rotated", rotated.secret());
+        assertEquals("whsec_test_rotated", rotated.secret());
         assertEquals(WebhookEventType.UNKNOWN, deliveries.data().get(0).eventType());
         assertEquals("future.event", deliveries.data().get(0).rawEventType());
         assertEquals(

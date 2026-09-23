@@ -1,5 +1,6 @@
 import java.net.URI
 import java.security.MessageDigest
+import java.util.zip.ZipFile
 import org.gradle.api.plugins.JavaPlatformPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
@@ -236,6 +237,107 @@ val verifyConsumerFixtures by tasks.registering {
     dependsOn(verifyGradleConsumer, verifyMavenConsumer)
 }
 
+val productionSecretPatterns = mapOf(
+    "SendByte live API key" to Regex("""sk_live_[A-Za-z0-9_\-]+"""),
+    "SendByte webhook signing secret" to Regex("""whsec_(?!test)[A-Za-z0-9_\-]+"""),
+)
+
+fun assertNoProductionSecrets(label: String, content: String) {
+    productionSecretPatterns.forEach { (description, pattern) ->
+        val match = pattern.find(content)
+        check(match == null) {
+            "$label contains a possible $description. Replace it with a documented placeholder before committing."
+        }
+    }
+}
+
+val secretScanFiles = fileTree(layout.projectDirectory) {
+    include(
+        "*.gradle.kts",
+        "*.md",
+        ".gitignore",
+        "config/**/*.json",
+        "config/**/*.xml",
+        "consumer-tests/**/*.java",
+        "consumer-tests/**/*.kt",
+        "consumer-tests/**/*.kts",
+        "consumer-tests/**/*.xml",
+        "docs/**/*.md",
+        "sendbyte-*/src/**/*.java",
+        "sendbyte-*/src/**/*.json",
+        "sendbyte-*/src/**/*.properties",
+        "sendbyte-*/src/**/*.yaml",
+        "sendbyte-*/src/**/*.yml",
+        "spec/**/*.yaml",
+        "tasks/**/*.md",
+    )
+    exclude(
+        "**/.gradle/**",
+        "**/build/**",
+        "**/target/**",
+    )
+}
+
+val verifyNoProductionSecrets by tasks.registering {
+    group = "verification"
+    description = "Scans source, docs, fixtures, and configuration for production-looking secrets."
+    inputs.files(secretScanFiles)
+
+    doLast {
+        secretScanFiles.files.forEach { file ->
+            assertNoProductionSecrets(file.relativeTo(rootDir).path, file.readText())
+        }
+    }
+}
+
+val verifyPublishedArtifactContents by tasks.registering {
+    group = "verification"
+    description = "Checks locally published JARs for duplicate entries, test classes, build metadata, and secrets."
+    dependsOn(publishConsumerRepository)
+
+    doLast {
+        val repository = layout.buildDirectory.dir("consumer-repository").get().asFile
+        val jars = repository.walkTopDown().filter { file -> file.isFile && file.extension == "jar" }
+        jars.forEach { jar ->
+            ZipFile(jar).use { zip ->
+                val names = mutableSetOf<String>()
+                val duplicates = mutableSetOf<String>()
+                zip.entries().asSequence().forEach { entry ->
+                    if (!names.add(entry.name)) {
+                        duplicates.add(entry.name)
+                    }
+                    check(!entry.name.endsWith("Test.class")) {
+                        "${jar.relativeTo(repository).path} contains test class ${entry.name}"
+                    }
+                    check(!entry.name.startsWith("build/") && !entry.name.startsWith("tmp/")) {
+                        "${jar.relativeTo(repository).path} contains local build metadata ${entry.name}"
+                    }
+                    check(entry.name != ".DS_Store") {
+                        "${jar.relativeTo(repository).path} contains macOS metadata"
+                    }
+                    if (!entry.isDirectory && isTextArtifactEntry(entry.name)) {
+                        val content = zip.getInputStream(entry).bufferedReader().use { it.readText() }
+                        assertNoProductionSecrets("${jar.name}!/${entry.name}", content)
+                    }
+                }
+                check(duplicates.isEmpty()) {
+                    "${jar.relativeTo(repository).path} contains duplicate entries: $duplicates"
+                }
+            }
+        }
+    }
+}
+
+fun isTextArtifactEntry(name: String): Boolean =
+    name.endsWith(".java") ||
+        name.endsWith(".json") ||
+        name.endsWith(".properties") ||
+        name.endsWith(".yaml") ||
+        name.endsWith(".yml") ||
+        name.endsWith(".xml") ||
+        name.endsWith(".md") ||
+        name.endsWith(".txt")
+
 val verifyStableModuleSets by tasks.registering {
     group = "verification"
     description = "Prevents unapproved modules from entering the stable aggregate or BOM."
@@ -292,6 +394,8 @@ tasks.check {
         verifyOpenApiSnapshot,
         "checkLicense",
         verifyConsumerFixtures,
+        verifyNoProductionSecrets,
+        verifyPublishedArtifactContents,
         verifyStableModuleSets,
     )
 }
