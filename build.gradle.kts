@@ -389,6 +389,65 @@ val verifyOpenApiSnapshot by tasks.registering {
     }
 }
 
+// Framework integrations compile to Java 17 bytecode, so a Java 11 JVM cannot load their test
+// classes and the Java 11 leg of the CI matrix fails with "Could not execute test class". Run
+// their tests on Java 17 or newer, still honouring a newer matrix JVM. Core and product modules
+// keep honouring -PtestJavaVersion unchanged.
+val java17TestProjects = listOf(
+    ":sendbyte-quarkus",
+    ":sendbyte-quarkus-runtime",
+    ":sendbyte-quarkus-deployment",
+    ":sendbyte-spring-boot-starter",
+)
+
+gradle.projectsEvaluated {
+    java17TestProjects.forEach { projectPath ->
+        val moduleProject = project(projectPath)
+        moduleProject.tasks.withType<Test>().configureEach {
+            val toolchains = moduleProject.extensions.getByType<JavaToolchainService>()
+            val requested = moduleProject.providers.gradleProperty("testJavaVersion").orElse("17")
+            javaLauncher.set(
+                toolchains.launcherFor {
+                    languageVersion.set(
+                        requested.map { value ->
+                            val matrix = JavaLanguageVersion.of(value)
+                            if (matrix.asInt() >= 17) matrix else JavaLanguageVersion.of(17)
+                        }
+                    )
+                }
+            )
+        }
+    }
+}
+
+// Guards the invariant that broke the Java 11 leg: a module's tests must never run on a JVM older
+// than the bytecode the module targets. Read from each module's compile release, so a new
+// framework module is covered without being listed above.
+val verifyTestJvmBaselines by tasks.registering {
+    group = "verification"
+    description = "Fails when a module's tests would run on a JVM older than its bytecode target."
+
+    doLast {
+        project.allprojects
+            .filter { moduleProject -> moduleProject.plugins.hasPlugin("java") }
+            .forEach { moduleProject ->
+                val release =
+                    moduleProject.tasks
+                        .named("compileJava", JavaCompile::class.java)
+                        .get()
+                        .options
+                        .release
+                        .getOrElse(11)
+                val launcher =
+                    moduleProject.tasks.withType(Test::class.java).first().javaLauncher.get()
+                val version = launcher.metadata.languageVersion.asInt()
+                check(version >= release) {
+                    "${moduleProject.path} compiles to Java $release but its tests would run on Java $version"
+                }
+            }
+    }
+}
+
 // Hermetic gates. These run on every edit/verify cycle: no network, no external
 // toolchain beyond the JDK, and no local publication.
 tasks.check {
@@ -397,6 +456,7 @@ tasks.check {
         "checkLicense",
         verifyNoProductionSecrets,
         verifyStableModuleSets,
+        verifyTestJvmBaselines,
     )
 }
 
