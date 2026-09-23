@@ -19,8 +19,9 @@ These conventions apply to handwritten Java production code, tests, examples, an
 
 ## Instance references
 
-- Qualify instance fields and instance method calls with `this.`.
-- Static members and local variables are not qualified with `this`.
+- Use `this.` to make same-class instance method calls explicit when it clarifies that the behavior is internal.
+- Do not use `this.` as a blanket qualifier for fields or for methods invoked through collaborator objects.
+- Static members, local variables, and collaborator calls are not qualified with `this`.
 - Constructor delegation continues to use the normal `this(...)` syntax.
 
 ## Layout

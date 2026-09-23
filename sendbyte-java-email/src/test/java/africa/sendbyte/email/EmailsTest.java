@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import africa.sendbyte.Page;
 import africa.sendbyte.ResourceOwnership;
 import africa.sendbyte.SendByteClient;
 import africa.sendbyte.exception.RateLimitException;
@@ -19,10 +20,13 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -208,6 +212,233 @@ final class EmailsTest {
                                 .build());
     }
 
+    @Test
+    void retrievesListsAndExportsEmailsWithContractPathsAndMapping() {
+        final Map<String, List<String>> csvHeaders = new LinkedHashMap<>();
+        csvHeaders.put(
+                "Content-Disposition",
+                Collections.singletonList("attachment; filename=\"emails.csv\""));
+        final SequenceTransport transport =
+                new SequenceTransport(
+                        stub(
+                                200,
+                                "{\"id\":\"em_1\",\"from\":\"sender@example.com\","
+                                        + "\"to\":[\"to@example.com\"],\"subject\":\"Hello\","
+                                        + "\"status\":\"delivered\",\"events\":[{\"type\":\"delivered\","
+                                        + "\"payload\":{\"mx\":\"example\"},"
+                                        + "\"created_at\":\"2026-09-09T10:18:30Z\"}],"
+                                        + "\"created_at\":\"2026-09-09T10:15:30Z\"}"),
+                        stub(
+                                200,
+                                "{\"data\":[{\"id\":\"em_2\",\"status\":\"mystery\","
+                                        + "\"created_at\":\"2026-09-09T11:15:30Z\"}],"
+                                        + "\"has_more\":true}"),
+                        stub(200, "id,status\nem_2,delivered\n", csvHeaders));
+        final Emails emails = new Emails(client(transport));
+
+        final EmailDetail detail = emails.get("em/id 1");
+        final Page<Email> page =
+                emails.list(
+                        ListEmailsRequest.builder()
+                                .limit(2)
+                                .after("cursor/1")
+                                .status(EmailStatus.DELIVERED)
+                                .build());
+        final EmailExport export =
+                emails.export(
+                        ExportEmailsRequest.builder()
+                                .status(EmailStatus.DELIVERED)
+                                .domainId("domain/1")
+                                .sandbox(true)
+                                .days(30)
+                                .search("hello world")
+                                .build());
+
+        assertEquals(
+                "https://api.test/v1/emails/em%2Fid%201",
+                transport.requests.get(0).uri().toString());
+        assertEquals(EmailStatus.DELIVERED, detail.email().status());
+        assertEquals("delivered", detail.events().get(0).type());
+        assertEquals(
+                "https://api.test/v1/emails?limit=2&after=cursor%2F1&status=delivered",
+                transport.requests.get(1).uri().toString());
+        assertTrue(page.hasMore());
+        assertEquals(EmailStatus.UNKNOWN, page.data().get(0).status());
+        assertEquals("mystery", page.data().get(0).rawStatus());
+        assertEquals(
+                "https://api.test/v1/emails/export?status=delivered&domain_id=domain%2F1&sandbox=true&days=30&search=hello%20world",
+                transport.requests.get(2).uri().toString());
+        assertEquals("attachment; filename=\"emails.csv\"", export.contentDisposition());
+        assertEquals(
+                "id,status\nem_2,delivered\n",
+                new String(export.content(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void domainsCoverContractOperationsAndUnknownWireValues() {
+        final SequenceTransport transport =
+                new SequenceTransport(
+                        stub(201, domainJson("dom_1", "pending", "TXT")),
+                        stub(200, "{\"data\":[" + domainJson("dom_2", "verified", "CNAME") + "]}"),
+                        stub(200, domainJson("dom_3", "warming", "ALIAS")),
+                        stub(
+                                200,
+                                "{\"id\":\"dom_3\",\"domain\":\"example.com\",\"status\":\"verified\","
+                                        + "\"ses_verified\":true,\"deliverability_ready\":true,"
+                                        + "\"checks\":[{\"type\":\"ALIAS\",\"host\":\"@\",\"name\":\"@\","
+                                        + "\"value\":\"sendbyte\",\"purpose\":\"dkim\",\"required\":true}],"
+                                        + "\"tracking\":{\"enabled\":true,\"host\":\"click.example.com\","
+                                        + "\"status\":\"future\"}}"),
+                        stub(200, domainJson("dom_3", "verified", "TXT")),
+                        stub(204, ""));
+        final Domains domains = new Domains(client(transport));
+
+        final Domain created =
+                domains.create(CreateDomainRequest.builder().domain("example.com").build());
+        final Page<Domain> listed = domains.list();
+        final Domain fetched = domains.get("dom/id 3");
+        final DomainVerification verification = domains.verify("dom/id 3");
+        domains.setTracking("dom/id 3", true);
+        domains.delete("dom/id 3");
+
+        assertEquals("POST", transport.requests.get(0).method());
+        assertTrue(json(transport.requests.get(0)).contains("\"domain\":\"example.com\""));
+        assertEquals("https://api.test/v1/domains", transport.requests.get(1).uri().toString());
+        assertEquals(
+                "https://api.test/v1/domains/dom%2Fid%203",
+                transport.requests.get(2).uri().toString());
+        assertEquals(DomainStatus.UNKNOWN, fetched.status());
+        assertEquals("warming", fetched.rawStatus());
+        assertEquals(DnsRecordType.UNKNOWN, fetched.dnsRecords().get(0).type());
+        assertEquals("ALIAS", fetched.dnsRecords().get(0).rawType());
+        assertEquals(DomainStatus.PENDING, created.status());
+        assertEquals("dom_2", listed.data().get(0).id());
+        assertEquals(
+                "https://api.test/v1/domains/dom%2Fid%203/verify",
+                transport.requests.get(3).uri().toString());
+        assertEquals(DomainTrackingStatus.UNKNOWN, verification.tracking().status());
+        assertEquals(
+                "https://api.test/v1/domains/dom%2Fid%203/tracking",
+                transport.requests.get(4).uri().toString());
+        assertTrue(json(transport.requests.get(4)).contains("\"enabled\":true"));
+        assertEquals("DELETE", transport.requests.get(5).method());
+    }
+
+    @Test
+    void templatesCoverSavedAndInlineRenderingOperations() {
+        final SequenceTransport transport =
+                new SequenceTransport(
+                        stub(201, templateJson("tpl_1", "html")),
+                        stub(200, "{\"data\":[" + templateJson("tpl_1", "mjml") + "]}"),
+                        stub(200, templateJson("tpl_1", "text")),
+                        stub(200, templateJson("tpl_1", "future")),
+                        stub(200, "{\"id\":\"tpl_1\",\"deleted\":true}"),
+                        stub(
+                                200,
+                                "{\"subject\":\"Hi Ada\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\"}"),
+                        stub(200, "{\"subject\":\"Saved Ada\",\"html\":\"<p>Saved</p>\"}"));
+        final Templates templates = new Templates(client(transport));
+        final TemplateInput input =
+                TemplateInput.builder()
+                        .name("welcome_1")
+                        .subject("Welcome {{name}}")
+                        .html("<p>Welcome</p>")
+                        .build();
+
+        final Template created = templates.create(input);
+        final Page<Template> listed = templates.list();
+        templates.get("welcome/name");
+        final Template updated = templates.update("welcome/name", input);
+        final TemplateDeletion deletion = templates.delete("welcome/name");
+        final RenderedTemplate rendered =
+                templates.render(
+                        RenderTemplateRequest.builder()
+                                .subject("Hi {{name}}")
+                                .html("<p>Hi</p>")
+                                .variable("name", "Ada")
+                                .build());
+        final RenderedTemplate preview =
+                templates.preview(
+                        "welcome/name",
+                        PreviewTemplateRequest.builder().variable("name", "Ada").build());
+
+        assertEquals(TemplateFormat.HTML, created.format());
+        assertEquals(TemplateFormat.MJML, listed.data().get(0).format());
+        assertEquals(TemplateFormat.UNKNOWN, updated.format());
+        assertEquals("future", updated.rawFormat());
+        assertTrue(deletion.deleted());
+        assertEquals("Hi Ada", rendered.subject());
+        assertEquals("Saved Ada", preview.subject());
+        assertEquals(
+                "https://api.test/v1/templates/welcome%2Fname",
+                transport.requests.get(2).uri().toString());
+        assertEquals("PUT", transport.requests.get(3).method());
+        assertFalse(
+                json(transport.requests.get(3)).contains("mjml"), json(transport.requests.get(3)));
+        assertEquals(
+                "https://api.test/v1/templates/render", transport.requests.get(5).uri().toString());
+        assertEquals(
+                "https://api.test/v1/templates/welcome%2Fname/preview",
+                transport.requests.get(6).uri().toString());
+    }
+
+    @Test
+    void suppressionsCoverLookupAndRemovalLifecycle() {
+        final SequenceTransport transport =
+                new SequenceTransport(
+                        stub(
+                                200,
+                                "{\"data\":[{\"address\":\"bounce@example.com\",\"reason\":\"bounce\","
+                                        + "\"source\":\"ses\",\"eligible\":true,"
+                                        + "\"created_at\":\"2026-09-09T10:15:30Z\"}]}"),
+                        stub(
+                                200,
+                                "{\"address\":\"bounce@example.com\",\"reason\":\"bounce\","
+                                        + "\"source\":\"ses\",\"eligible\":true,"
+                                        + "\"request\":{\"id\":\"rem_1\",\"status\":\"future\"},"
+                                        + "\"created_at\":\"2026-09-09T10:15:30Z\"}"),
+                        stub(201, removalJson("pending_verification", "api")),
+                        stub(200, "{\"data\":[" + removalJson("removed", "dashboard") + "]}"),
+                        stub(200, removalJson("expired", "future")),
+                        stub(200, removalJson("cancelled", "api")));
+        final Suppressions suppressions = new Suppressions(client(transport));
+
+        final Page<Suppression> page =
+                suppressions.list(
+                        ListSuppressionsRequest.builder()
+                                .search("bounce@example.com")
+                                .limit(10)
+                                .build());
+        final Suppression suppression = suppressions.get("bounce+tag@example.com");
+        final SuppressionRemoval created =
+                suppressions.requestRemoval(
+                        CreateSuppressionRemovalRequest.builder()
+                                .address("bounce@example.com")
+                                .note("fixed")
+                                .build());
+        final Page<SuppressionRemoval> removals = suppressions.listRemovals();
+        final SuppressionRemoval fetched = suppressions.getRemoval("rem/1");
+        final SuppressionRemoval cancelled = suppressions.cancelRemoval("rem/1");
+
+        assertEquals(
+                "https://api.test/v1/suppressions?search=bounce%40example.com&limit=10",
+                transport.requests.get(0).uri().toString());
+        assertEquals("bounce@example.com", page.data().get(0).address());
+        assertEquals(
+                "https://api.test/v1/suppressions/bounce%2Btag%40example.com",
+                transport.requests.get(1).uri().toString());
+        assertEquals(SuppressionRemovalStatus.UNKNOWN, suppression.request().status());
+        assertTrue(json(transport.requests.get(2)).contains("\"note\":\"fixed\""));
+        assertEquals(SuppressionRemovalStatus.PENDING_VERIFICATION, created.status());
+        assertEquals(SuppressionRemovalSource.DASHBOARD, removals.data().get(0).source());
+        assertEquals(SuppressionRemovalSource.UNKNOWN, fetched.source());
+        assertEquals(SuppressionRemovalStatus.CANCELLED, cancelled.status());
+        assertEquals(
+                "https://api.test/v1/suppressions/removals/rem%2F1",
+                transport.requests.get(4).uri().toString());
+        assertEquals("DELETE", transport.requests.get(5).method());
+    }
+
     private static SendEmailRequest minimalRequest() {
         return SendEmailRequest.builder()
                 .from("sender@example.com")
@@ -231,6 +462,60 @@ final class EmailsTest {
                 .flatMap(entry -> entry.getValue().stream())
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static String json(final TransportRequest request) {
+        return new String(request.body(), StandardCharsets.UTF_8);
+    }
+
+    private static Stub stub(final int status, final String response) {
+        return stub(status, response, Collections.emptyMap());
+    }
+
+    private static Stub stub(
+            final int status, final String response, final Map<String, List<String>> headers) {
+        return new Stub(status, response, headers);
+    }
+
+    private static String domainJson(
+            final String id, final String status, final String recordType) {
+        return "{\"id\":\""
+                + id
+                + "\",\"domain\":\"example.com\",\"status\":\""
+                + status
+                + "\",\"dkim_selector\":\"sb1\",\"dns_records\":[{\"type\":\""
+                + recordType
+                + "\",\"host\":\"@\",\"name\":\"@\",\"value\":\"sendbyte\","
+                + "\"purpose\":\"dkim\",\"required\":true}],"
+                + "\"verified_at\":\"2026-09-09T10:15:30Z\","
+                + "\"deliverability_ready\":true,"
+                + "\"tracking\":{\"enabled\":false,\"host\":\"click.example.com\","
+                + "\"status\":\"pending\"},"
+                + "\"created_at\":\"2026-09-09T09:15:30Z\"}";
+    }
+
+    private static String templateJson(final String id, final String format) {
+        return "{\"id\":\""
+                + id
+                + "\",\"name\":\"welcome_1\",\"subject\":\"Welcome\","
+                + "\"version\":2,\"format\":\""
+                + format
+                + "\",\"html\":\"<p>Welcome</p>\","
+                + "\"created_at\":\"2026-09-09T09:15:30Z\","
+                + "\"updated_at\":\"2026-09-09T10:15:30Z\"}";
+    }
+
+    private static String removalJson(final String status, final String source) {
+        return "{\"id\":\"rem_1\",\"address\":\"bounce@example.com\",\"reason\":\"bounce\","
+                + "\"status\":\""
+                + status
+                + "\",\"note\":\"fixed\",\"source\":\""
+                + source
+                + "\",\"verification_sends\":1,"
+                + "\"created_at\":\"2026-09-09T09:15:30Z\","
+                + "\"expires_at\":\"2026-09-16T09:15:30Z\","
+                + "\"timeline\":[{\"type\":\"created\",\"message\":\"Created\","
+                + "\"created_at\":\"2026-09-09T09:15:30Z\"}]}";
     }
 
     private static final class CapturingTransport implements HttpTransport {
@@ -275,6 +560,39 @@ final class EmailsTest {
         @Override
         public CompletableFuture<TransportResponse> executeAsync(final TransportRequest request) {
             return this.pending;
+        }
+    }
+
+    private static final class SequenceTransport implements HttpTransport {
+        private final Queue<Stub> stubs = new ArrayDeque<>();
+        private final List<TransportRequest> requests = new ArrayList<>();
+
+        SequenceTransport(final Stub... stubs) {
+            Collections.addAll(this.stubs, stubs);
+        }
+
+        @Override
+        public TransportResponse execute(final TransportRequest request) {
+            this.requests.add(request);
+            final Stub stub = this.stubs.remove();
+            return new TransportResponse(stub.status, stub.headers, stub.response);
+        }
+
+        @Override
+        public CompletableFuture<TransportResponse> executeAsync(final TransportRequest request) {
+            return CompletableFuture.completedFuture(this.execute(request));
+        }
+    }
+
+    private static final class Stub {
+        private final int status;
+        private final byte[] response;
+        private final Map<String, List<String>> headers;
+
+        Stub(final int status, final String response, final Map<String, List<String>> headers) {
+            this.status = status;
+            this.response = response.getBytes(StandardCharsets.UTF_8);
+            this.headers = headers;
         }
     }
 }

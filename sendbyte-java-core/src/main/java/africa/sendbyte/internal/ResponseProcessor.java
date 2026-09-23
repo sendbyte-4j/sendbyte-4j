@@ -64,6 +64,9 @@ final class ResponseProcessor {
         if (response.body().length == 0 || responseType == Void.class) {
             return null;
         }
-        return this.json.read(response.body(), responseType);
+        if (responseType == byte[].class) {
+            return responseType.cast(response.body());
+        }
+        return json.read(response.body(), responseType);
     }
 }

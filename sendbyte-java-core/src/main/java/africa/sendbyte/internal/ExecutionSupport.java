@@ -71,7 +71,8 @@ final class ExecutionSupport {
             throw apiExceptionMapper.map(request, response, state, false);
         }
 
-        final Duration delay = retryPlanner.delay(response.firstHeader("Retry-After"), state.attemptCount());
+        final Duration delay =
+                retryPlanner.delay(response.firstHeader("Retry-After"), state.attemptCount());
         if (retryPlanner.canRetryAttempt(request, state, delay, this.ticker)) {
             state.addRetryDelay(delay);
             return RetryAttempt.retry(delay);
