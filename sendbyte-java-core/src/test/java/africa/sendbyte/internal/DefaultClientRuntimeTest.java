@@ -483,7 +483,7 @@ final class DefaultClientRuntimeTest {
                                 .enqueue(
                                         response(
                                                 422,
-                                                "{\"error\":{\"code\":\"validation_error\",\"message\":\"bad sk_live_secret Authorization: Bearer token to user@example.com +234 800 123 4567 https://example.com/customer/abc 123456789012345678901234567890\",\"docs_url\":\"https://docs.sendbyte.africa/errors/validation_error\"}}")),
+                                                "{\"error\":{\"code\":\"validation_error\",\"message\":\"bad sk_redact_secret Authorization: Bearer token to user@example.com +234 800 123 4567 https://example.com/customer/abc 123456789012345678901234567890\",\"docs_url\":\"https://docs.sendbyte.africa/errors/validation_error\"}}")),
                         TestExecutionControls.fixed(Instant.EPOCH, 0.5d));
 
         final ValidationException failure =
@@ -498,7 +498,7 @@ final class DefaultClientRuntimeTest {
                                                 .build(),
                                         WireValue.class));
 
-        assertFalse(failure.getMessage().contains("sk_live_secret"));
+        assertFalse(failure.getMessage().contains("sk_redact_secret"));
         assertFalse(failure.getMessage().contains("user@example.com"));
         assertFalse(failure.getMessage().contains("+234"));
         assertFalse(failure.getMessage().contains("https://example.com"));
