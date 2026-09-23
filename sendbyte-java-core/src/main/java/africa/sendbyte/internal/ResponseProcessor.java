@@ -42,7 +42,7 @@ final class ResponseProcessor {
             final ClientRequest request,
             final TransportResponse response,
             final ExecutionState state) {
-        if (response.body().length <= this.maxResponseBodyBytes) {
+        if (response.bodyLength() <= this.maxResponseBodyBytes) {
             return;
         }
 
@@ -61,12 +61,13 @@ final class ResponseProcessor {
     }
 
     private <T> T decode(final TransportResponse response, final Class<T> responseType) {
-        if (response.body().length == 0 || responseType == Void.class) {
+        if (response.bodyLength() == 0 || responseType == Void.class) {
             return null;
         }
+        final byte[] body = response.body();
         if (responseType == byte[].class) {
-            return responseType.cast(response.body());
+            return responseType.cast(body);
         }
-        return json.read(response.body(), responseType);
+        return json.read(body, responseType);
     }
 }

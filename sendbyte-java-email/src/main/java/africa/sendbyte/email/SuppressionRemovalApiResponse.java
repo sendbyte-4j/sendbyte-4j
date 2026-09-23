@@ -1,7 +1,9 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 final class SuppressionRemovalApiResponse {
     @JsonProperty("id")
@@ -65,21 +67,24 @@ final class SuppressionRemovalApiResponse {
     }
 
     static final class TimelineEventApiResponse {
-        @JsonProperty("type")
-        public String type;
+        @JsonProperty("action")
+        public String action;
 
-        @JsonProperty("message")
-        public String message;
+        @JsonProperty("actor")
+        public String actor;
 
-        @JsonProperty("created_at")
-        public String createdAt;
+        @JsonProperty("at")
+        public String at;
+
+        @JsonProperty("metadata")
+        public Map<String, Object> metadata;
 
         SuppressionRemovalTimelineEvent toSuppressionRemovalTimelineEvent() {
             return new SuppressionRemovalTimelineEvent(
-                    this.type,
-                    this.message,
-                    WireSupport.parseTimestamp(
-                            this.createdAt, "suppression removal timeline timestamp"));
+                    this.action,
+                    this.actor,
+                    WireSupport.parseTimestamp(this.at, "suppression removal timeline timestamp"),
+                    this.metadata);
         }
     }
 }

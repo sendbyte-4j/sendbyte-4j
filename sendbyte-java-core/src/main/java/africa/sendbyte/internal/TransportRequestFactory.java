@@ -14,21 +14,24 @@ final class TransportRequestFactory {
     private final URI baseUri;
     private final CredentialsProvider credentialsProvider;
     private final String userAgent;
-    private final JacksonJsonCodec json;
 
     TransportRequestFactory(
             final URI baseUri,
             final CredentialsProvider credentialsProvider,
-            final String userAgent,
-            final JacksonJsonCodec json) {
+            final String userAgent) {
         this.baseUri = baseUri;
         this.credentialsProvider = credentialsProvider;
         this.userAgent = userAgent;
-        this.json = json;
     }
 
-    TransportRequest create(final ClientRequest request, final Duration remainingTimeout) {
-        final byte[] body = request.body() == null ? new byte[0] : this.json.write(request.body());
+    /**
+     * Assembles the transport request from an already encoded body. Encoding is the caller's job so
+     * that it can happen once per execution rather than once per attempt.
+     *
+     * @param body encoded request body, or null when the operation sends no body
+     */
+    TransportRequest create(
+            final ClientRequest request, final byte[] body, final Duration remainingTimeout) {
         final Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         request.headers().forEach((name, values) -> headers.put(name, List.copyOf(values)));
@@ -36,7 +39,7 @@ final class TransportRequestFactory {
         headers.put("Accept", Collections.singletonList("application/json"));
         headers.put("User-Agent", Collections.singletonList(this.userAgent));
 
-        if (request.body() != null) {
+        if (body != null) {
             headers.put("Content-Type", Collections.singletonList("application/json"));
         }
 

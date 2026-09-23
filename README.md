@@ -21,10 +21,13 @@ Run Gradle itself on JDK 17 or newer. Core and product source is compiled with `
 ./gradlew clean check
 ```
 
-The `check` lifecycle verifies formatting, PMD rules, compiler warnings, dependency
-version conflicts, dependency licenses, JavaDoc syntax, the reviewed OpenAPI snapshot,
-stable module membership, and Gradle/Maven consumer fixtures. Use
-`./gradlew spotlessApply` to format supported source and repository files.
+The `check` lifecycle is hermetic: it verifies formatting, PMD rules, compiler warnings,
+dependency version conflicts, dependency licenses, JavaDoc syntax, the reviewed OpenAPI
+snapshot, and stable module membership, without network access or local publication.
+
+`./gradlew verifyRelease` adds the release gates that need local publication and a Maven
+toolchain: the published-artifact content checks and the Gradle/Maven consumer fixtures.
+Use `./gradlew spotlessApply` to format supported source and repository files.
 
 To exercise tests on a specific installed JDK:
 
@@ -32,6 +35,7 @@ To exercise tests on a specific installed JDK:
 ./gradlew test -PtestJavaVersion=11
 ```
 
-CI runs the test suite on Java 11, 17, 21, and 25 and checks that repeated builds produce identical archives. The delivery sequence and acceptance criteria are tracked in [`tasks/`](tasks/README.md), while architectural decisions are recorded in [`docs/`](docs/ARCHITECTURE.md).
+CI runs the test suite on Java 11, 17, 21, and 25, runs the release gates once on Java 17,
+and checks that repeated builds produce identical archives. The delivery sequence and acceptance criteria are tracked in [`tasks/`](tasks/README.md), while architectural decisions are recorded in [`docs/`](docs/ARCHITECTURE.md).
 
 Java contributions follow the repository's [`coding conventions`](docs/CODING_CONVENTIONS.md). Coding agents also receive these rules through the checked-in `AGENTS.md` files so they persist across sessions.

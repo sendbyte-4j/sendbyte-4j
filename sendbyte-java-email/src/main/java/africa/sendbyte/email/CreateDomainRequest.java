@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Request body for creating a sending domain. */
 public final class CreateDomainRequest {
     private final String domain;

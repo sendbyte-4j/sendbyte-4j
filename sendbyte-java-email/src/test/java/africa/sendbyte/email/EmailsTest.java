@@ -143,6 +143,16 @@ final class EmailsTest {
     }
 
     @Test
+    void propagatesAsyncCancellationFromMappedOperations() {
+        final PendingTransport transport = new PendingTransport();
+        final CompletableFuture<EmailDetail> get = new Emails(client(transport)).getAsync("em_1");
+
+        assertTrue(get.cancel(true));
+
+        assertTrue(transport.pending.isCancelled());
+    }
+
+    @Test
     void defaultJdkTransportPerformsRealLocalHttpRequest() throws Exception {
         final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         final AtomicReference<String> authorization = new AtomicReference<>();
@@ -287,8 +297,7 @@ final class EmailsTest {
                                         + "\"ses_verified\":true,\"deliverability_ready\":true,"
                                         + "\"checks\":[{\"type\":\"ALIAS\",\"host\":\"@\",\"name\":\"@\","
                                         + "\"value\":\"sendbyte\",\"purpose\":\"dkim\",\"required\":true}],"
-                                        + "\"tracking\":{\"enabled\":true,\"host\":\"click.example.com\","
-                                        + "\"status\":\"future\"}}"),
+                                        + "\"tracking\":\"active\"}"),
                         stub(200, domainJson("dom_3", "verified", "TXT")),
                         stub(204, ""));
         final Domains domains = new Domains(client(transport));
@@ -316,7 +325,10 @@ final class EmailsTest {
         assertEquals(
                 "https://api.test/v1/domains/dom%2Fid%203/verify",
                 transport.requests.get(3).uri().toString());
-        assertEquals(DomainTrackingStatus.UNKNOWN, verification.tracking().status());
+        assertEquals(DomainTrackingStatus.ACTIVE, verification.tracking());
+        assertEquals("active", verification.rawTracking());
+        assertEquals("ALIAS", verification.checks().get(0).rawType());
+        assertTrue(verification.sesVerified());
         assertEquals(
                 "https://api.test/v1/domains/dom%2Fid%203/tracking",
                 transport.requests.get(4).uri().toString());
@@ -433,6 +445,11 @@ final class EmailsTest {
         assertEquals(SuppressionRemovalSource.DASHBOARD, removals.data().get(0).source());
         assertEquals(SuppressionRemovalSource.UNKNOWN, fetched.source());
         assertEquals(SuppressionRemovalStatus.CANCELLED, cancelled.status());
+        assertEquals(1, created.timeline().size());
+        assertEquals("created", created.timeline().get(0).action());
+        assertEquals("api", created.timeline().get(0).actor());
+        assertEquals(OffsetDateTime.parse("2026-09-09T09:15:30Z"), created.timeline().get(0).at());
+        assertEquals(Map.of("note", "fixed"), created.timeline().get(0).metadata());
         assertEquals(
                 "https://api.test/v1/suppressions/removals/rem%2F1",
                 transport.requests.get(4).uri().toString());
@@ -514,8 +531,8 @@ final class EmailsTest {
                 + "\",\"verification_sends\":1,"
                 + "\"created_at\":\"2026-09-09T09:15:30Z\","
                 + "\"expires_at\":\"2026-09-16T09:15:30Z\","
-                + "\"timeline\":[{\"type\":\"created\",\"message\":\"Created\","
-                + "\"created_at\":\"2026-09-09T09:15:30Z\"}]}";
+                + "\"timeline\":[{\"action\":\"created\",\"actor\":\"api\","
+                + "\"at\":\"2026-09-09T09:15:30Z\",\"metadata\":{\"note\":\"fixed\"}}]}";
     }
 
     private static final class CapturingTransport implements HttpTransport {

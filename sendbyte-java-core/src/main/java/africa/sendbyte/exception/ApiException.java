@@ -1,5 +1,6 @@
 package africa.sendbyte.exception;
 
+import africa.sendbyte.ApiErrorCategory;
 import africa.sendbyte.RequestDiagnostics;
 
 /** A non-success response returned by the SendByte API. */
@@ -9,6 +10,7 @@ public class ApiException extends SendByteException {
     private final String code;
     private final String documentationUrl;
     private final String requestId;
+    private final ApiErrorCategory category;
 
     public ApiException(
             final String message,
@@ -21,6 +23,7 @@ public class ApiException extends SendByteException {
         this.code = code;
         this.documentationUrl = documentationUrl;
         this.requestId = requestId;
+        this.category = ApiErrorCategory.fromCode(code, statusCode);
     }
 
     public ApiException(
@@ -35,6 +38,7 @@ public class ApiException extends SendByteException {
         this.code = code;
         this.documentationUrl = documentationUrl;
         this.requestId = requestId;
+        this.category = ApiErrorCategory.fromCode(code, statusCode);
     }
 
     public int statusCode() {
@@ -51,5 +55,12 @@ public class ApiException extends SendByteException {
 
     public String requestId() {
         return this.requestId;
+    }
+
+    /**
+     * Classified failure meaning, resolved from {@link #code()} with the status code as a fallback.
+     */
+    public ApiErrorCategory category() {
+        return this.category;
     }
 }

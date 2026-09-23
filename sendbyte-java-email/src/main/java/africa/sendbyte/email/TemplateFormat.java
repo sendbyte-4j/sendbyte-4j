@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Render source format reported for a stored template. */
 public enum TemplateFormat {
     MJML,

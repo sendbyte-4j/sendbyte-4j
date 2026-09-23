@@ -1,5 +1,6 @@
 package africa.sendbyte.webhooks;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

@@ -2,6 +2,7 @@ package africa.sendbyte;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -73,6 +76,41 @@ final class SendByteClientTest {
         client.close();
 
         assertFalse(transport.closeCount.get() > 0);
+    }
+
+    @Test
+    void closeFailsInFlightAsyncOperationsInsteadOfLeavingThemPending() throws Exception {
+        final RetryingTransport transport = new RetryingTransport();
+        final SendByteClient client =
+                SendByteClient.builder()
+                        .apiKey("sk_test_example")
+                        .baseUri(URI.create("https://api.test"))
+                        .transport(transport, ResourceOwnership.CALLER)
+                        .requestTimeout(Duration.ofMinutes(5))
+                        .retryPolicy(
+                                RetryPolicy.builder()
+                                        .maxAttempts(3)
+                                        .initialBackoff(Duration.ofMillis(10))
+                                        .maxBackoff(Duration.ofSeconds(30))
+                                        .jitterRatio(0.0d)
+                                        .build())
+                        .build();
+
+        final CompletableFuture<Void> pending =
+                client.runtime()
+                        .executeAsync(
+                                ClientRequest.builder("email.list", "GET", "/v1/emails").build(),
+                                Void.class);
+
+        transport.awaitFirstAttempt();
+        Thread.sleep(200L);
+
+        client.close();
+
+        final ExecutionException failure =
+                assertThrows(ExecutionException.class, () -> pending.get(5, TimeUnit.SECONDS));
+        assertInstanceOf(IllegalStateException.class, failure.getCause());
+        assertEquals(1, transport.attempts.get());
     }
 
     @Test
@@ -145,6 +183,17 @@ final class SendByteClientTest {
                 () -> response.headers().get("Retry-After").add("31"));
     }
 
+    @Test
+    void reportsBodyLengthWithoutCopyingTheBody() {
+        final byte[] body = {1, 2, 3, 4, 5};
+        final TransportResponse response = new TransportResponse(200, Collections.emptyMap(), body);
+
+        body[0] = 9;
+
+        assertEquals(5, response.bodyLength());
+        assertEquals(1, response.body()[0]);
+    }
+
     private static final class CloseCountingTransport implements HttpTransport {
         private final AtomicInteger closeCount = new AtomicInteger();
 
@@ -176,6 +225,31 @@ final class SendByteClientTest {
         @Override
         public CompletableFuture<TransportResponse> executeAsync(final TransportRequest request) {
             return CompletableFuture.completedFuture(this.execute(request));
+        }
+    }
+
+    /** Always answers 503 with a Retry-After far enough out to leave a retry pending. */
+    private static final class RetryingTransport implements HttpTransport {
+        private final AtomicInteger attempts = new AtomicInteger();
+
+        @Override
+        public TransportResponse execute(final TransportRequest request) {
+            this.attempts.incrementAndGet();
+            return new TransportResponse(
+                    503,
+                    Collections.singletonMap("Retry-After", Collections.singletonList("60")),
+                    new byte[0]);
+        }
+
+        @Override
+        public CompletableFuture<TransportResponse> executeAsync(final TransportRequest request) {
+            return CompletableFuture.completedFuture(this.execute(request));
+        }
+
+        void awaitFirstAttempt() throws InterruptedException {
+            for (int attempt = 0; attempt < 100 && this.attempts.get() == 0; attempt++) {
+                Thread.sleep(10L);
+            }
         }
     }
 }

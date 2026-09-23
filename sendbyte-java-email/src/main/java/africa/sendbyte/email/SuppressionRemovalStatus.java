@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Status for a suppression removal request. */
 public enum SuppressionRemovalStatus {
     PENDING_VERIFICATION,

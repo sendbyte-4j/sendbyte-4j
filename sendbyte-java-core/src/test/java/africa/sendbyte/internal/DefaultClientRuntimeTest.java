@@ -47,6 +47,7 @@ import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -115,6 +116,35 @@ final class DefaultClientRuntimeTest {
         assertEquals("done", response.value().name);
         assertEquals(3, response.diagnostics().attemptCount());
         assertEquals(Duration.ofSeconds(7), response.diagnostics().retryDelay());
+    }
+
+    @Test
+    void encodesTheRequestBodyOnceAcrossRetries() {
+        final CountingBody body = new CountingBody();
+        final FakeHttpTransport transport =
+                new FakeHttpTransport()
+                        .enqueue(response(503, error("service_unavailable")))
+                        .enqueue(response(200, "{\"name\":\"done\"}"));
+        final DefaultClientRuntime runtime =
+                runtime(
+                        transport,
+                        TestExecutionControls.fixed(Instant.EPOCH, 0.5d),
+                        RetryPolicy.builder().maxAttempts(3).jitterRatio(0.0d).build(),
+                        RequestObserver.NONE,
+                        1024);
+
+        runtime.execute(
+                ClientRequest.builder("resource.create", "POST", "/v1/resource")
+                        .idempotencyProtected(true)
+                        .body(body)
+                        .build(),
+                WireValue.class);
+
+        assertEquals(2, transport.requests().size());
+        assertEquals(1, body.encodes.get());
+        assertEquals(
+                "{\"subject\":\"Hi\"}",
+                new String(transport.requests().get(1).body(), StandardCharsets.UTF_8));
     }
 
     @Test
@@ -596,7 +626,7 @@ final class DefaultClientRuntimeTest {
                 controls.ticker(),
                 controls.sleeper(),
                 controls.random(),
-                new java.util.concurrent.atomic.AtomicBoolean());
+                new ClientLifecycle());
     }
 
     private static DefaultClientRuntime runtime(
@@ -616,7 +646,7 @@ final class DefaultClientRuntimeTest {
                 controls.ticker(),
                 controls.sleeper(),
                 controls.random(),
-                new java.util.concurrent.atomic.AtomicBoolean());
+                new ClientLifecycle());
     }
 
     private static TransportResponse response(final int status, final String body) {
@@ -864,5 +894,15 @@ final class DefaultClientRuntimeTest {
 
     public static final class WireValue {
         public String name;
+    }
+
+    /** Counts how many times the codec reads the body, so encoding can be asserted as once. */
+    public static final class CountingBody {
+        private final AtomicInteger encodes = new AtomicInteger();
+
+        public String getSubject() {
+            this.encodes.incrementAndGet();
+            return "Hi";
+        }
     }
 }

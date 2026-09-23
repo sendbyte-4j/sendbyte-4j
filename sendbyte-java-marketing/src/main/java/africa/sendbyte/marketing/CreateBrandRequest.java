@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Request used to create a marketing brand. */
 public final class CreateBrandRequest {
     private final String name;

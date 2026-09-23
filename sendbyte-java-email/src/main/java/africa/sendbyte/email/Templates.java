@@ -2,6 +2,7 @@ package africa.sendbyte.email;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
@@ -28,11 +29,12 @@ public final class Templates {
     public CompletableFuture<Template> createAsync(final TemplateInput input) {
         Objects.requireNonNull(input, "input");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         collectionRequest(
                                 "template.create", "POST", TemplateApiRequest.from(input)),
-                        TemplateApiResponse.class)
-                .thenApply(TemplateApiResponse::toTemplate);
+                        TemplateApiResponse.class),
+                TemplateApiResponse::toTemplate);
     }
 
     public Page<Template> list() {
@@ -43,10 +45,11 @@ public final class Templates {
     }
 
     public CompletableFuture<Page<Template>> listAsync() {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         collectionRequest("template.list", "GET", null),
-                        TemplatePageApiResponse.class)
-                .thenApply(TemplatePageApiResponse::toPage);
+                        TemplatePageApiResponse.class),
+                TemplatePageApiResponse::toPage);
     }
 
     public Template get(final String id) {
@@ -56,9 +59,10 @@ public final class Templates {
     }
 
     public CompletableFuture<Template> getAsync(final String id) {
-        return runtime.executeAsync(
-                        itemRequest("template.get", "GET", id, null), TemplateApiResponse.class)
-                .thenApply(TemplateApiResponse::toTemplate);
+        return AsyncSupport.map(
+                runtime.executeAsync(
+                        itemRequest("template.get", "GET", id, null), TemplateApiResponse.class),
+                TemplateApiResponse::toTemplate);
     }
 
     public Template update(final String id, final TemplateInput input) {
@@ -73,10 +77,11 @@ public final class Templates {
     public CompletableFuture<Template> updateAsync(final String id, final TemplateInput input) {
         Objects.requireNonNull(input, "input");
 
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         itemRequest("template.update", "PUT", id, TemplateApiRequest.from(input)),
-                        TemplateApiResponse.class)
-                .thenApply(TemplateApiResponse::toTemplate);
+                        TemplateApiResponse.class),
+                TemplateApiResponse::toTemplate);
     }
 
     public TemplateDeletion delete(final String id) {
@@ -87,10 +92,11 @@ public final class Templates {
     }
 
     public CompletableFuture<TemplateDeletion> deleteAsync(final String id) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         itemRequest("template.delete", "DELETE", id, null),
-                        TemplateDeletionApiResponse.class)
-                .thenApply(TemplateDeletionApiResponse::toTemplateDeletion);
+                        TemplateDeletionApiResponse.class),
+                TemplateDeletionApiResponse::toTemplateDeletion);
     }
 
     public RenderedTemplate render(final RenderTemplateRequest request) {
@@ -103,8 +109,9 @@ public final class Templates {
     public CompletableFuture<RenderedTemplate> renderAsync(final RenderTemplateRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(renderRequest(request), RenderedTemplateApiResponse.class)
-                .thenApply(RenderedTemplateApiResponse::toRenderedTemplate);
+        return AsyncSupport.map(
+                runtime.executeAsync(renderRequest(request), RenderedTemplateApiResponse.class),
+                RenderedTemplateApiResponse::toRenderedTemplate);
     }
 
     public RenderedTemplate preview(final String id, final PreviewTemplateRequest request) {
@@ -118,8 +125,10 @@ public final class Templates {
             final String id, final PreviewTemplateRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(previewRequest(id, request), RenderedTemplateApiResponse.class)
-                .thenApply(RenderedTemplateApiResponse::toRenderedTemplate);
+        return AsyncSupport.map(
+                runtime.executeAsync(
+                        previewRequest(id, request), RenderedTemplateApiResponse.class),
+                RenderedTemplateApiResponse::toRenderedTemplate);
     }
 
     private static ClientRequest collectionRequest(

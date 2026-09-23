@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Filters for listing suppressed recipient addresses. */
 public final class ListSuppressionsRequest {
     private final String search;

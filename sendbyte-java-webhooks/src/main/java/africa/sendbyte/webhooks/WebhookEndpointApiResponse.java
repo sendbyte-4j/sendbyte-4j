@@ -1,5 +1,6 @@
 package africa.sendbyte.webhooks;
 
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;

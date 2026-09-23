@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
@@ -18,9 +19,6 @@ final class DomainApiResponse {
 
     @JsonProperty("dns_records")
     public List<DnsRecordApiResponse> dnsRecords;
-
-    @JsonProperty("checks")
-    public List<DnsRecordApiResponse> checks;
 
     @JsonProperty("verified_at")
     public String verifiedAt;
@@ -48,17 +46,6 @@ final class DomainApiResponse {
                 this.deliverabilityReady,
                 this.tracking == null ? null : tracking.toDomainTracking(),
                 WireSupport.parseTimestamp(this.createdAt, "domain created timestamp"));
-    }
-
-    DomainVerification toVerification() {
-        return new DomainVerification(
-                this.id,
-                this.domain,
-                this.status,
-                WireSupport.mapImmutable(this.checks, DnsRecordApiResponse::toDnsRecord),
-                this.sesVerified,
-                this.deliverabilityReady,
-                this.tracking == null ? null : tracking.toDomainTracking());
     }
 
     static final class DnsRecordApiResponse {

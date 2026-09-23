@@ -1,6 +1,7 @@
 package africa.sendbyte.marketing;
 
 import africa.sendbyte.Page;
+import africa.sendbyte.internal.WireSupport;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 

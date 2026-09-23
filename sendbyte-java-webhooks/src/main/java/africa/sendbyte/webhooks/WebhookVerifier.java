@@ -1,5 +1,6 @@
 package africa.sendbyte.webhooks;
 
+import africa.sendbyte.internal.WireSupport;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;

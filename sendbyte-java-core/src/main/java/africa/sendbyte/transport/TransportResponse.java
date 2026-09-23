@@ -49,6 +49,11 @@ public final class TransportResponse {
         return this.body.clone();
     }
 
+    /** Length of the response body in bytes, available without copying the body. */
+    public int bodyLength() {
+        return this.body.length;
+    }
+
     private static Map<String, List<String>> caseInsensitiveHeaders() {
         return new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     }

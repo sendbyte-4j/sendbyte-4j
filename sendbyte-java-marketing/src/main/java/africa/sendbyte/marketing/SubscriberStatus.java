@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Subscriber status scoped to a single marketing list. */
 public enum SubscriberStatus {
     SUBSCRIBED("subscribed"),

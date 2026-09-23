@@ -20,16 +20,14 @@ import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.DoubleSupplier;
 
 public final class DefaultClientRuntime implements ClientRuntime {
     private final HttpTransport transport;
     private final ScheduledExecutorService executor;
+    private final ClientLifecycle lifecycle;
     private final ExecutionSupport support;
 
     public DefaultClientRuntime(
@@ -42,7 +40,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final RequestObserver requestObserver,
             final long maxResponseBodyBytes,
             final ScheduledExecutorService executor,
-            final AtomicBoolean closed) {
+            final ClientLifecycle lifecycle) {
         this(
                 baseUri,
                 credentialsProvider,
@@ -57,7 +55,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
                 System::nanoTime,
                 delay -> TimeUnit.NANOSECONDS.sleep(delay.toNanos()),
                 Math::random,
-                closed);
+                lifecycle);
     }
 
     DefaultClientRuntime(
@@ -74,22 +72,24 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final Ticker ticker,
             final Sleeper sleeper,
             final DoubleSupplier random,
-            final AtomicBoolean closed) {
+            final ClientLifecycle lifecycle) {
         final JacksonJsonCodec json = new JacksonJsonCodec();
         final TransportRequestFactory requestFactory =
-                new TransportRequestFactory(baseUri, credentialsProvider, userAgent, json);
+                new TransportRequestFactory(baseUri, credentialsProvider, userAgent);
         final DiagnosticsReporter diagnosticsReporter =
                 new DiagnosticsReporter(ticker, requestObserver);
         final RetryPlanner retryPlanner = new RetryPlanner(retryPolicy, clock, random);
 
         this.transport = transport;
         this.executor = executor;
+        this.lifecycle = lifecycle;
         this.support =
                 new ExecutionSupport(
                         requestTimeout,
                         ticker,
                         sleeper,
-                        closed,
+                        lifecycle,
+                        json,
                         requestFactory,
                         diagnosticsReporter,
                         retryPlanner,
@@ -210,31 +210,16 @@ public final class DefaultClientRuntime implements ClientRuntime {
     @Override
     public <T> CompletableFuture<T> executeAsync(
             final ClientRequest request, final Class<T> responseType) {
-        final CompletableFuture<T> result = new CompletableFuture<>();
-        final CompletableFuture<DetailedResponse<T>> source =
-                this.executeDetailedAsync(request, responseType);
-        source.whenCompleteAsync(
-                (response, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(unwrap(failure));
-                    } else {
-                        result.complete(response.value());
-                    }
-                },
-                this.executor);
-        result.whenComplete(
-                (ignored, failure) -> {
-                    if (result.isCancelled()) {
-                        source.cancel(true);
-                    }
-                });
-        return result;
+        return AsyncSupport.map(
+                this.executeDetailedAsync(request, responseType), DetailedResponse::value);
     }
 
     @Override
     public <T> CompletableFuture<DetailedResponse<T>> executeDetailedAsync(
             final ClientRequest request, final Class<T> responseType) {
         final AsyncOperation<T> operation = new AsyncOperation<>();
+        this.lifecycle.register(operation);
+        operation.whenComplete((ignored, failure) -> this.lifecycle.deregister(operation));
         this.dispatchAsync(request, responseType, this.support.newState(request), operation);
         return operation;
     }
@@ -245,7 +230,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final ExecutionState state,
             final AsyncOperation<T> operation) {
 
-        if (operation.isCancelled()) return;
+        if (operation.isDone()) return;
 
         try {
             this.support.ensureOpen();
@@ -256,13 +241,17 @@ public final class DefaultClientRuntime implements ClientRuntime {
             operation.current(current);
             current.whenCompleteAsync(
                     (response, failure) -> {
-                        if (operation.isCancelled()) {
+                        if (operation.isDone()) {
                             current.cancel(true);
                             return;
                         }
                         if (failure != null) {
                             this.handleAsyncFailure(
-                                    request, responseType, state, operation, unwrap(failure));
+                                    request,
+                                    responseType,
+                                    state,
+                                    operation,
+                                    AsyncSupport.unwrap(failure));
                         } else {
                             this.handleAsyncResponse(
                                     request, responseType, state, operation, response);
@@ -352,14 +341,5 @@ public final class DefaultClientRuntime implements ClientRuntime {
         } catch (final RuntimeException exception) {
             operation.completeExceptionally(exception);
         }
-    }
-
-    private static Throwable unwrap(final Throwable failure) {
-        Throwable current = failure;
-        while ((current instanceof CompletionException || current instanceof ExecutionException)
-                && current.getCause() != null) {
-            current = current.getCause();
-        }
-        return current;
     }
 }

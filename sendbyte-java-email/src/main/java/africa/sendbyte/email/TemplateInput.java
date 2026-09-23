@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Request body used when creating or replacing a saved template. */
 public final class TemplateInput {
     private final String name;

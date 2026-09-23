@@ -2,6 +2,7 @@ package africa.sendbyte.email;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
@@ -24,8 +25,9 @@ public final class Suppressions {
     public CompletableFuture<Page<Suppression>> listAsync(final ListSuppressionsRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(listRequest(request), SuppressionPageApiResponse.class)
-                .thenApply(SuppressionPageApiResponse::toPage);
+        return AsyncSupport.map(
+                runtime.executeAsync(listRequest(request), SuppressionPageApiResponse.class),
+                SuppressionPageApiResponse::toPage);
     }
 
     public Suppression get(final String address) {
@@ -33,8 +35,9 @@ public final class Suppressions {
     }
 
     public CompletableFuture<Suppression> getAsync(final String address) {
-        return runtime.executeAsync(getRequest(address), SuppressionApiResponse.class)
-                .thenApply(SuppressionApiResponse::toSuppression);
+        return AsyncSupport.map(
+                runtime.executeAsync(getRequest(address), SuppressionApiResponse.class),
+                SuppressionApiResponse::toSuppression);
     }
 
     public SuppressionRemoval requestRemoval(final CreateSuppressionRemovalRequest request) {
@@ -48,9 +51,10 @@ public final class Suppressions {
             final CreateSuppressionRemovalRequest request) {
         Objects.requireNonNull(request, "request");
 
-        return runtime.executeAsync(
-                        removalCreateRequest(request), SuppressionRemovalApiResponse.class)
-                .thenApply(SuppressionRemovalApiResponse::toSuppressionRemoval);
+        return AsyncSupport.map(
+                runtime.executeAsync(
+                        removalCreateRequest(request), SuppressionRemovalApiResponse.class),
+                SuppressionRemovalApiResponse::toSuppressionRemoval);
     }
 
     public Page<SuppressionRemoval> listRemovals() {
@@ -61,10 +65,11 @@ public final class Suppressions {
     }
 
     public CompletableFuture<Page<SuppressionRemoval>> listRemovalsAsync() {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         removalCollectionRequest("suppression.removal.list", "GET", null),
-                        SuppressionRemovalPageApiResponse.class)
-                .thenApply(SuppressionRemovalPageApiResponse::toPage);
+                        SuppressionRemovalPageApiResponse.class),
+                SuppressionRemovalPageApiResponse::toPage);
     }
 
     public SuppressionRemoval getRemoval(final String id) {
@@ -75,10 +80,11 @@ public final class Suppressions {
     }
 
     public CompletableFuture<SuppressionRemoval> getRemovalAsync(final String id) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         removalItemRequest("suppression.removal.get", "GET", id),
-                        SuppressionRemovalApiResponse.class)
-                .thenApply(SuppressionRemovalApiResponse::toSuppressionRemoval);
+                        SuppressionRemovalApiResponse.class),
+                SuppressionRemovalApiResponse::toSuppressionRemoval);
     }
 
     public SuppressionRemoval cancelRemoval(final String id) {
@@ -89,10 +95,11 @@ public final class Suppressions {
     }
 
     public CompletableFuture<SuppressionRemoval> cancelRemovalAsync(final String id) {
-        return runtime.executeAsync(
+        return AsyncSupport.map(
+                runtime.executeAsync(
                         removalItemRequest("suppression.removal.cancel", "DELETE", id),
-                        SuppressionRemovalApiResponse.class)
-                .thenApply(SuppressionRemovalApiResponse::toSuppressionRemoval);
+                        SuppressionRemovalApiResponse.class),
+                SuppressionRemovalApiResponse::toSuppressionRemoval);
     }
 
     private static ClientRequest listRequest(final ListSuppressionsRequest request) {

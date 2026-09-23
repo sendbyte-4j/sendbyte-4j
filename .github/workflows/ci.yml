@@ -39,6 +39,26 @@ jobs:
       - name: Build and test
         run: ./gradlew clean check -PtestJavaVersion=${{ matrix.test-java }} --no-daemon
 
+  release-gates:
+    name: Release gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run release gates
+        run: ./gradlew verifyRelease --no-daemon
+
   reproducible-artifacts:
     name: Verify reproducible artifacts
     runs-on: ubuntu-latest

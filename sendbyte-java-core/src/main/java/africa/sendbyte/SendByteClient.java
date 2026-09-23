@@ -1,5 +1,6 @@
 package africa.sendbyte;
 
+import africa.sendbyte.internal.ClientLifecycle;
 import africa.sendbyte.internal.DefaultClientRuntime;
 import africa.sendbyte.spi.ClientRuntime;
 import africa.sendbyte.transport.HttpTransport;
@@ -10,7 +11,6 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -32,7 +32,7 @@ public final class SendByteClient implements AutoCloseable {
     private final HttpTransport transport;
     private final ResourceOwnership transportOwnership;
     private final ScheduledExecutorService retryExecutor;
-    private final AtomicBoolean closed = new AtomicBoolean();
+    private final ClientLifecycle lifecycle = new ClientLifecycle();
 
     private SendByteClient(final Builder builder) {
         final CredentialsProvider credentials =
@@ -59,7 +59,7 @@ public final class SendByteClient implements AutoCloseable {
                         builder.requestObserver,
                         builder.maxResponseBodyBytes,
                         this.retryExecutor,
-                        this.closed);
+                        this.lifecycle);
     }
 
     public static Builder builder() {
@@ -71,28 +71,23 @@ public final class SendByteClient implements AutoCloseable {
      * normally passes this client to a product facade instead.
      */
     public ClientRuntime runtime() {
-        this.ensureOpen();
+        this.lifecycle.ensureOpen();
         return this.runtime;
     }
 
     public boolean isClosed() {
-        return this.closed.get();
-    }
-
-    private void ensureOpen() {
-        if (this.closed.get()) {
-            throw new IllegalStateException("SendByteClient is closed");
-        }
+        return this.lifecycle.isClosed();
     }
 
     @Override
     public void close() {
-        if (this.closed.compareAndSet(false, true)
-                && this.transportOwnership == ResourceOwnership.CLIENT) {
+        if (this.lifecycle.shutdown() && this.transportOwnership == ResourceOwnership.CLIENT) {
             this.transport.close();
         }
-        if (this.closed.get()) {
-            this.retryExecutor.shutdownNow();
+        if (this.lifecycle.isClosed()) {
+            // shutdown() rather than shutdownNow(): the completion callbacks queued by the sweep in
+            // lifecycle.shutdown() still have to run so that derived futures complete.
+            this.retryExecutor.shutdown();
         }
     }
 
