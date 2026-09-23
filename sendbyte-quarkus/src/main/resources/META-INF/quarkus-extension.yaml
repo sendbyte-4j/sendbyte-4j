@@ -1,0 +1,11 @@
+name: SendByte Java SDK
+description: Quarkus integration for the SendByte Java SDK.
+metadata:
+  keywords:
+    - sendbyte
+    - email
+    - webhooks
+    - marketing
+  categories:
+    - "miscellaneous"
+  status: "preview"
