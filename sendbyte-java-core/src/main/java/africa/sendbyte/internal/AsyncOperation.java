@@ -17,6 +17,22 @@ final class AsyncOperation<T> extends CompletableFuture<DetailedResponse<T>> {
         this.scheduled = scheduled;
     }
 
+    /**
+     * Cancels the in-flight transport work and any pending retry, then fails this operation. Used
+     * when the client closes so that callers never wait on a future that cannot complete.
+     */
+    void abort(final Throwable failure) {
+        final CompletableFuture<TransportResponse> inFlight = this.current;
+        if (inFlight != null) {
+            inFlight.cancel(true);
+        }
+        final ScheduledFuture<?> pendingRetry = this.scheduled;
+        if (pendingRetry != null) {
+            pendingRetry.cancel(false);
+        }
+        super.completeExceptionally(failure);
+    }
+
     @Override
     public boolean cancel(final boolean mayInterruptIfRunning) {
         final CompletableFuture<TransportResponse> currentRequest = this.current;
