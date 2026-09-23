@@ -9,13 +9,12 @@ import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.transport.TransportRequest;
 import africa.sendbyte.transport.TransportResponse;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 final class ExecutionSupport {
     private final Duration requestTimeout;
     private final Ticker ticker;
     private final Sleeper sleeper;
-    private final AtomicBoolean closed;
+    private final ClientLifecycle lifecycle;
     private final TransportRequestFactory requestFactory;
     private final DiagnosticsReporter diagnosticsReporter;
     private final RetryPlanner retryPlanner;
@@ -26,7 +25,7 @@ final class ExecutionSupport {
             final Duration requestTimeout,
             final Ticker ticker,
             final Sleeper sleeper,
-            final AtomicBoolean closed,
+            final ClientLifecycle lifecycle,
             final TransportRequestFactory requestFactory,
             final DiagnosticsReporter diagnosticsReporter,
             final RetryPlanner retryPlanner,
@@ -35,7 +34,7 @@ final class ExecutionSupport {
         this.requestTimeout = requestTimeout;
         this.ticker = ticker;
         this.sleeper = sleeper;
-        this.closed = closed;
+        this.lifecycle = lifecycle;
         this.requestFactory = requestFactory;
         this.diagnosticsReporter = diagnosticsReporter;
         this.retryPlanner = retryPlanner;
@@ -146,9 +145,7 @@ final class ExecutionSupport {
     }
 
     void ensureOpen() {
-        if (this.closed.get()) {
-            throw new IllegalStateException("SendByteClient is closed");
-        }
+        this.lifecycle.ensureOpen();
     }
 
     void ensureDeadline(final ExecutionState state) {

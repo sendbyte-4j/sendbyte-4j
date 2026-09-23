@@ -596,7 +596,7 @@ final class DefaultClientRuntimeTest {
                 controls.ticker(),
                 controls.sleeper(),
                 controls.random(),
-                new java.util.concurrent.atomic.AtomicBoolean());
+                new ClientLifecycle());
     }
 
     private static DefaultClientRuntime runtime(
@@ -616,7 +616,7 @@ final class DefaultClientRuntimeTest {
                 controls.ticker(),
                 controls.sleeper(),
                 controls.random(),
-                new java.util.concurrent.atomic.AtomicBoolean());
+                new ClientLifecycle());
     }
 
     private static TransportResponse response(final int status, final String body) {

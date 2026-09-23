@@ -24,12 +24,12 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.DoubleSupplier;
 
 public final class DefaultClientRuntime implements ClientRuntime {
     private final HttpTransport transport;
     private final ScheduledExecutorService executor;
+    private final ClientLifecycle lifecycle;
     private final ExecutionSupport support;
 
     public DefaultClientRuntime(
@@ -42,7 +42,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final RequestObserver requestObserver,
             final long maxResponseBodyBytes,
             final ScheduledExecutorService executor,
-            final AtomicBoolean closed) {
+            final ClientLifecycle lifecycle) {
         this(
                 baseUri,
                 credentialsProvider,
@@ -57,7 +57,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
                 System::nanoTime,
                 delay -> TimeUnit.NANOSECONDS.sleep(delay.toNanos()),
                 Math::random,
-                closed);
+                lifecycle);
     }
 
     DefaultClientRuntime(
@@ -74,7 +74,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final Ticker ticker,
             final Sleeper sleeper,
             final DoubleSupplier random,
-            final AtomicBoolean closed) {
+            final ClientLifecycle lifecycle) {
         final JacksonJsonCodec json = new JacksonJsonCodec();
         final TransportRequestFactory requestFactory =
                 new TransportRequestFactory(baseUri, credentialsProvider, userAgent, json);
@@ -84,12 +84,13 @@ public final class DefaultClientRuntime implements ClientRuntime {
 
         this.transport = transport;
         this.executor = executor;
+        this.lifecycle = lifecycle;
         this.support =
                 new ExecutionSupport(
                         requestTimeout,
                         ticker,
                         sleeper,
-                        closed,
+                        lifecycle,
                         requestFactory,
                         diagnosticsReporter,
                         retryPlanner,
@@ -235,6 +236,8 @@ public final class DefaultClientRuntime implements ClientRuntime {
     public <T> CompletableFuture<DetailedResponse<T>> executeDetailedAsync(
             final ClientRequest request, final Class<T> responseType) {
         final AsyncOperation<T> operation = new AsyncOperation<>();
+        this.lifecycle.register(operation);
+        operation.whenComplete((ignored, failure) -> this.lifecycle.deregister(operation));
         this.dispatchAsync(request, responseType, this.support.newState(request), operation);
         return operation;
     }
@@ -245,7 +248,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final ExecutionState state,
             final AsyncOperation<T> operation) {
 
-        if (operation.isCancelled()) return;
+        if (operation.isDone()) return;
 
         try {
             this.support.ensureOpen();
@@ -256,7 +259,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             operation.current(current);
             current.whenCompleteAsync(
                     (response, failure) -> {
-                        if (operation.isCancelled()) {
+                        if (operation.isDone()) {
                             current.cancel(true);
                             return;
                         }

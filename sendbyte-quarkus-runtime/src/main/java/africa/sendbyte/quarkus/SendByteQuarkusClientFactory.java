@@ -25,6 +25,9 @@ public final class SendByteQuarkusClientFactory implements AutoCloseable {
         if (!config.enabled()) {
             throw new IllegalStateException("quarkus.sendbyte.enabled is false");
         }
+        if (this.client != null) {
+            throw new IllegalStateException("SendByte Quarkus client has already been created");
+        }
         if (existingClient != null) {
             this.client = existingClient;
             this.ownsClient = false;
