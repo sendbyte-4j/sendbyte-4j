@@ -56,12 +56,13 @@ public final class Domains {
     }
 
     public DomainVerification verify(final String id) {
-        return runtime.execute(verifyRequest(id), DomainApiResponse.class).toVerification();
+        return runtime.execute(verifyRequest(id), DomainVerificationApiResponse.class)
+                .toVerification();
     }
 
     public CompletableFuture<DomainVerification> verifyAsync(final String id) {
-        return runtime.executeAsync(verifyRequest(id), DomainApiResponse.class)
-                .thenApply(DomainApiResponse::toVerification);
+        return runtime.executeAsync(verifyRequest(id), DomainVerificationApiResponse.class)
+                .thenApply(DomainVerificationApiResponse::toVerification);
     }
 
     public Domain setTracking(final String id, final boolean enabled) {
