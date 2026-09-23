@@ -389,14 +389,27 @@ val verifyOpenApiSnapshot by tasks.registering {
     }
 }
 
+// Hermetic gates. These run on every edit/verify cycle: no network, no external
+// toolchain beyond the JDK, and no local publication.
 tasks.check {
     dependsOn(
         verifyOpenApiSnapshot,
         "checkLicense",
-        verifyConsumerFixtures,
         verifyNoProductionSecrets,
-        verifyPublishedArtifactContents,
         verifyStableModuleSets,
+    )
+}
+
+// Release gates. Publishing every module and then compiling real Gradle and Maven
+// consumers needs `mvn` on PATH plus Maven Central access, so it is deliberately kept
+// out of `check` and run once per revision instead of on every matrix leg.
+val verifyRelease by tasks.registering {
+    group = "verification"
+    description = "Runs every gate: check plus consumer fixtures and published artifact checks."
+    dependsOn(
+        tasks.check,
+        verifyConsumerFixtures,
+        verifyPublishedArtifactContents,
     )
 }
 
