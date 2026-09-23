@@ -183,6 +183,17 @@ final class SendByteClientTest {
                 () -> response.headers().get("Retry-After").add("31"));
     }
 
+    @Test
+    void reportsBodyLengthWithoutCopyingTheBody() {
+        final byte[] body = {1, 2, 3, 4, 5};
+        final TransportResponse response = new TransportResponse(200, Collections.emptyMap(), body);
+
+        body[0] = 9;
+
+        assertEquals(5, response.bodyLength());
+        assertEquals(1, response.body()[0]);
+    }
+
     private static final class CloseCountingTransport implements HttpTransport {
         private final AtomicInteger closeCount = new AtomicInteger();
 
