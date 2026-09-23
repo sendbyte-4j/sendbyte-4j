@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;

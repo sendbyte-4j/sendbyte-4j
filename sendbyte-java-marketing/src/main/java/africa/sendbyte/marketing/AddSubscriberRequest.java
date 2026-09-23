@@ -1,5 +1,6 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.Map;
 
 /** Request used to add one subscriber to a marketing list. */

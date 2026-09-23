@@ -1,5 +1,7 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Source that originally placed a subscriber on a marketing list. */
 public enum SubscriberSource {
     FORM("form"),

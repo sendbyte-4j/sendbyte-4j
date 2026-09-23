@@ -1,5 +1,6 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.List;
 
 /** Brand collection with account quota metadata. */

@@ -1,5 +1,6 @@
 package africa.sendbyte.marketing;
 
+import africa.sendbyte.internal.WireSupport;
 import java.util.List;
 
 /** Subscriber collection with list/account quota metadata. */

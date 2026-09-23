@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** DNS record type required by a domain verification flow. */
 public enum DnsRecordType {
     TXT,

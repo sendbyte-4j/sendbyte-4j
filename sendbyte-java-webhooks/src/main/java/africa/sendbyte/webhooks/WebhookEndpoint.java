@@ -1,5 +1,6 @@
 package africa.sendbyte.webhooks;
 
+import africa.sendbyte.internal.WireSupport;
 import java.time.OffsetDateTime;
 import java.util.List;
 

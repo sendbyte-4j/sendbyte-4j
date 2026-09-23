@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.internal.WireSupport;
+
 /** Request body for asking SendByte to remove an address from suppression. */
 public final class CreateSuppressionRemovalRequest {
     private final String address;

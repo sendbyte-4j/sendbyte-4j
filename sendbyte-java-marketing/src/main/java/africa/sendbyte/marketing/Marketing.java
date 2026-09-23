@@ -2,6 +2,7 @@ package africa.sendbyte.marketing;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.internal.WireSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;
 import java.util.Objects;
