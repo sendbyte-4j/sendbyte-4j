@@ -77,7 +77,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final ClientLifecycle lifecycle) {
         final JacksonJsonCodec json = new JacksonJsonCodec();
         final TransportRequestFactory requestFactory =
-                new TransportRequestFactory(baseUri, credentialsProvider, userAgent, json);
+                new TransportRequestFactory(baseUri, credentialsProvider, userAgent);
         final DiagnosticsReporter diagnosticsReporter =
                 new DiagnosticsReporter(ticker, requestObserver);
         final RetryPlanner retryPlanner = new RetryPlanner(retryPolicy, clock, random);
@@ -91,6 +91,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
                         ticker,
                         sleeper,
                         lifecycle,
+                        json,
                         requestFactory,
                         diagnosticsReporter,
                         retryPlanner,

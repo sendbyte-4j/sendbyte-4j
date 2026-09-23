@@ -15,6 +15,7 @@ final class ExecutionSupport {
     private final Ticker ticker;
     private final Sleeper sleeper;
     private final ClientLifecycle lifecycle;
+    private final JacksonJsonCodec json;
     private final TransportRequestFactory requestFactory;
     private final DiagnosticsReporter diagnosticsReporter;
     private final RetryPlanner retryPlanner;
@@ -26,6 +27,7 @@ final class ExecutionSupport {
             final Ticker ticker,
             final Sleeper sleeper,
             final ClientLifecycle lifecycle,
+            final JacksonJsonCodec json,
             final TransportRequestFactory requestFactory,
             final DiagnosticsReporter diagnosticsReporter,
             final RetryPlanner retryPlanner,
@@ -35,6 +37,7 @@ final class ExecutionSupport {
         this.ticker = ticker;
         this.sleeper = sleeper;
         this.lifecycle = lifecycle;
+        this.json = json;
         this.requestFactory = requestFactory;
         this.diagnosticsReporter = diagnosticsReporter;
         this.retryPlanner = retryPlanner;
@@ -47,7 +50,12 @@ final class ExecutionSupport {
     }
 
     TransportRequest transportRequest(final ClientRequest request, final ExecutionState state) {
-        return requestFactory.create(request, state.remaining(this.ticker));
+        return requestFactory.create(
+                request, state.encodedBody(this::encodeBody), state.remaining(this.ticker));
+    }
+
+    private byte[] encodeBody(final ClientRequest request) {
+        return request.body() == null ? null : this.json.write(request.body());
     }
 
     <T> africa.sendbyte.DetailedResponse<T> success(

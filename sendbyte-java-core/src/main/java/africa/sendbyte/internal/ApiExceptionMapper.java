@@ -34,10 +34,12 @@ final class ApiExceptionMapper {
             final ExecutionState state,
             final boolean retryable) {
         ErrorEnvelope envelope = null;
-        try {
-            envelope = this.json.read(response.body(), ErrorEnvelope.class);
-        } catch (final RuntimeException ignored) {
-            // Preserve a useful HTTP failure even when a proxy returned non-contract JSON.
+        if (response.bodyLength() > 0) {
+            try {
+                envelope = this.json.read(response.body(), ErrorEnvelope.class);
+            } catch (final RuntimeException ignored) {
+                // Preserve a useful HTTP failure even when a proxy returned non-contract JSON.
+            }
         }
 
         final ErrorBody error = envelope == null ? null : envelope.error;
