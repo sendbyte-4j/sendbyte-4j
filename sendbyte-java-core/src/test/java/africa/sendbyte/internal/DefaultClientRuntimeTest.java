@@ -59,7 +59,7 @@ final class DefaultClientRuntimeTest {
                         .enqueue(
                                 response(
                                         503,
-                                        "{\"error\":{\"code\":\"service_unavailable\",\"message\":\"try later\",\"docs_url\":\"https://docs.sendbyte.africa/errors/service_unavailable\"}}"))
+                                        "{\"error\":{\"code\":\"service_unavailable\",\"message\":\"try later\",\"docs_url\":\"https://docs.example.test/errors/service_unavailable\"}}"))
                         .enqueue(response(200, "{\"name\":\"done\"}", "x-request-id", "req_done"));
         final TestExecutionControls controls = TestExecutionControls.fixed(Instant.EPOCH, 0.5d);
         final DefaultClientRuntime runtime = runtime(transport, controls);
@@ -513,7 +513,7 @@ final class DefaultClientRuntimeTest {
                                 .enqueue(
                                         response(
                                                 422,
-                                                "{\"error\":{\"code\":\"validation_error\",\"message\":\"bad sk_redact_secret Authorization: Bearer token to user@example.com +234 800 123 4567 https://example.com/customer/abc 123456789012345678901234567890\",\"docs_url\":\"https://docs.sendbyte.africa/errors/validation_error\"}}")),
+                                                "{\"error\":{\"code\":\"validation_error\",\"message\":\"bad sk_redact_secret Authorization: Bearer token to user@example.com +234 800 123 4567 https://example.com/customer/abc 123456789012345678901234567890\",\"docs_url\":\"https://docs.example.test/errors/validation_error\"}}")),
                         TestExecutionControls.fixed(Instant.EPOCH, 0.5d));
 
         final ValidationException failure =
@@ -669,7 +669,7 @@ final class DefaultClientRuntimeTest {
                 + code
                 + "\",\"message\":\""
                 + code
-                + "\",\"docs_url\":\"https://docs.sendbyte.africa/errors/"
+                + "\",\"docs_url\":\"https://docs.example.test/errors/"
                 + code
                 + "\"}}";
     }

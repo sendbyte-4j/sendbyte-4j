@@ -88,6 +88,9 @@ public final class SendByteQuarkusClientFactory implements AutoCloseable {
             throw new IllegalStateException(
                     "quarkus.sendbyte.api-key must be configured with a non-blank SendByte API key");
         }
+        if (config.baseUri() == null) {
+            throw new IllegalStateException("quarkus.sendbyte.base-uri must be configured");
+        }
     }
 
     private static RetryPolicy retryPolicy(final SendByteQuarkusConfig.Retry retry) {

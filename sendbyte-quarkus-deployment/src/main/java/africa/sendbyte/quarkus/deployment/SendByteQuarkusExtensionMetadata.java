@@ -5,8 +5,10 @@ import java.util.List;
 /** Dependency-light metadata for the SendByte Quarkus extension package. */
 public final class SendByteQuarkusExtensionMetadata {
     public static final String FEATURE = "sendbyte";
-    public static final String RUNTIME_ARTIFACT = "africa.sendbyte:sendbyte-quarkus-runtime";
-    public static final String DEPLOYMENT_ARTIFACT = "africa.sendbyte:sendbyte-quarkus-deployment";
+    public static final String RUNTIME_ARTIFACT =
+            "io.github.sendbyte-4j.sendbyte:sendbyte-quarkus-runtime";
+    public static final String DEPLOYMENT_ARTIFACT =
+            "io.github.sendbyte-4j.sendbyte:sendbyte-quarkus-deployment";
 
     private static final List<String> PRODUCT_TYPES =
             List.of(

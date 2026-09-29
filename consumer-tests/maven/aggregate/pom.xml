@@ -14,7 +14,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>africa.sendbyte</groupId>
+            <groupId>io.github.sendbyte-4j.sendbyte</groupId>
             <artifactId>sendbyte-java-all</artifactId>
         </dependency>
     </dependencies>

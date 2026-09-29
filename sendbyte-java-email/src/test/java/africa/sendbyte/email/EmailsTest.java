@@ -105,7 +105,7 @@ final class EmailsTest {
                 new CapturingTransport(
                         422,
                         "{\"error\":{\"code\":\"validation_error\",\"message\":\"subject is invalid\","
-                                + "\"docs_url\":\"https://docs.sendbyte.africa/errors/validation_error\"}}",
+                                + "\"docs_url\":\"https://docs.example.test/errors/validation_error\"}}",
                         headers);
 
         final ValidationException failure =
@@ -122,7 +122,7 @@ final class EmailsTest {
                 new CapturingTransport(
                         429,
                         "{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow down\","
-                                + "\"docs_url\":\"https://docs.sendbyte.africa/errors/rate_limit_exceeded\"}}",
+                                + "\"docs_url\":\"https://docs.example.test/errors/rate_limit_exceeded\"}}",
                         headers);
         final RateLimitException rateLimit =
                 assertThrows(

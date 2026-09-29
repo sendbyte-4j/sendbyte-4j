@@ -24,7 +24,7 @@ The shorter north star is:
 
 ### Target project
 
-`sendbyte-4j` is the new multi-module Gradle Kotlin DSL implementation. Its core and product artifacts use the `africa.sendbyte` group, currently carry the development version `0.1.0-SNAPSHOT`, compile to Java 11 bytecode, and are tested with JUnit 5. Framework integrations will require Java 17. The first implemented vertical slice provides the shared client/runtime plus synchronous and asynchronous email sending.
+`sendbyte-4j` is the new multi-module Gradle Kotlin DSL implementation. Its core and product artifacts use the `io.github.sendbyte-4j.sendbyte` group, currently carry the development version `0.1.0-SNAPSHOT`, compile to Java 11 bytecode, and are tested with JUnit 5. Framework integrations will require Java 17. The first implemented vertical slice provides the shared client/runtime plus synchronous and asynchronous email sending.
 
 ### Reference project
 
@@ -108,7 +108,7 @@ Public API compatibility, wire compatibility, Java baseline, and framework suppo
 
 ## 4. Target module architecture
 
-The initial artifact names and `africa.sendbyte` group are approved for implementation. Release versioning and final publication metadata remain release gates.
+The initial artifact names and `io.github.sendbyte-4j.sendbyte` group are approved for implementation. Release versioning and final publication metadata remain release gates.
 
 ```text
 sendbyte-4j (Gradle root)
@@ -166,6 +166,7 @@ The common path should remain compact:
 ```java
 SendByteClient client = SendByteClient.builder()
     .apiKey(System.getenv("SENDBYTE_API_KEY"))
+    .baseUri(URI.create(System.getenv("SENDBYTE_BASE_URI")))
     .build();
 ```
 
@@ -174,6 +175,7 @@ Advanced construction should use SendByte-owned contracts:
 ```java
 SendByteClient client = SendByteClient.builder()
     .credentialsProvider(credentialsProvider)
+    .baseUri(baseUri)
     .httpTransport(httpTransport)
     .serialization(serialization)
     .retryPolicy(retryPolicy)
@@ -320,7 +322,7 @@ The quality stack should include:
 15. Core and product artifacts target Java 11; Spring Boot and Quarkus integrations target Java 17.
 16. Gradle Kotlin DSL, JDK `HttpClient`, internally isolated Jackson, and `CompletableFuture` are the initial platform choices.
 17. Credentials providers are supported, retries default to conservative behavior, and native-image compatibility will be validated rather than assumed.
-18. Initial implementation coordinates use the `africa.sendbyte` group and the module names in section 4.
+18. Initial implementation coordinates use the `io.github.sendbyte-4j.sendbyte` group and the module names in section 4.
 
 ## 14. Decisions still required
 

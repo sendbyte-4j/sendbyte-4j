@@ -5,18 +5,18 @@ Audit date: 2026-09-09
 
 ## Sources
 
-- Canonical contract: [SendByte OpenAPI](https://docs.sendbyte.africa/api-reference/openapi.yaml)
+- Canonical contract: production contract URL pending
 - Contract version: OpenAPI 3.1.0, API document version `1.0.0`
 - Vendored snapshot: [`../spec/openapi.yaml`](../spec/openapi.yaml)
-- Snapshot SHA-256: `01c89ddb9d553a9738b02a4c76162a8435c1f5ae0482a384aba4b68d94155b72`
-- Documentation index: [SendByte documentation](https://docs.sendbyte.africa/llms.txt)
+- Snapshot SHA-256: `de37a5be7fee93eebbec0955f5f3ceff7aed856ab2f3da61fd1dadc3c28815c9`
+- Documentation index: production documentation URL pending
 - Reference implementation: `../../SendByte-Java-main/`
 
 The vendored snapshot is the build-time design input. Online documentation is useful context, but generated SDK behavior must be derived from the versioned contract plus reviewed deviations.
 
 ## Contract summary
 
-The contract contains 41 operations across 27 paths. It defines bearer authentication, production server `https://api.sendbyte.africa`, a `/v1` path prefix, an error envelope, 24 machine-readable error codes, `x-request-id` on responses, and integer-seconds `Retry-After` for rate limiting.
+The contract contains 41 operations across 27 paths. It defines bearer authentication, placeholder server `https://api.example.test`, a `/v1` path prefix, an error envelope, 24 machine-readable error codes, `x-request-id` on responses, and integer-seconds `Retry-After` for rate limiting.
 
 Current documented channel status is:
 

@@ -15,9 +15,9 @@ repositories {
 val aggregate by configurations.creating
 
 dependencies {
-    implementation(platform("africa.sendbyte:sendbyte-java-bom:${sdkVersion.get()}"))
-    implementation("africa.sendbyte:sendbyte-java-email")
-    aggregate("africa.sendbyte:sendbyte-java-all:${sdkVersion.get()}")
+    implementation(platform("io.github.sendbyte-4j.sendbyte:sendbyte-java-bom:${sdkVersion.get()}"))
+    implementation("io.github.sendbyte-4j.sendbyte:sendbyte-java-email")
+    aggregate("io.github.sendbyte-4j.sendbyte:sendbyte-java-all:${sdkVersion.get()}")
 }
 
 java {
@@ -56,12 +56,12 @@ tasks.register("verifyDependencyBoundaries") {
         }
 
         val expectedAggregate = setOf(
-            "africa.sendbyte:sendbyte-java-all",
-            "africa.sendbyte:sendbyte-java-email",
-            "africa.sendbyte:sendbyte-java-marketing",
-            "africa.sendbyte:sendbyte-java-webhooks",
-            "africa.sendbyte:sendbyte-java-admin",
-            "africa.sendbyte:sendbyte-java-core",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-all",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-email",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-marketing",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-webhooks",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-admin",
+            "io.github.sendbyte-4j.sendbyte:sendbyte-java-core",
         )
         check(aggregateArtifacts.get().containsAll(expectedAggregate)) {
             "Aggregate consumer did not resolve every stable product module"

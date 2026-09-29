@@ -21,6 +21,7 @@ import africa.sendbyte.transport.TransportRequest;
 import africa.sendbyte.transport.TransportResponse;
 import africa.sendbyte.webhooks.Webhooks;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
@@ -42,7 +43,8 @@ final class SendByteAutoConfigurationTest {
     @Test
     void createsClientAndPresentProductBeansFromApiKey() {
         contextRunner
-                .withPropertyValues("sendbyte.api-key=sk_test_example")
+                .withPropertyValues(
+                        "sendbyte.api-key=sk_test_example", "sendbyte.base-uri=https://api.test")
                 .run(
                         context -> {
                             assertNotNull(context.getBean(SendByteClient.class));
@@ -68,6 +70,7 @@ final class SendByteAutoConfigurationTest {
         contextRunner
                 .withPropertyValues(
                         "sendbyte.api-key=sk_test_example",
+                        "sendbyte.base-uri=https://api.test",
                         "sendbyte.connect-timeout=5s",
                         "sendbyte.request-timeout=1s")
                 .run(
@@ -87,7 +90,8 @@ final class SendByteAutoConfigurationTest {
     @Test
     void backsOffForUserProvidedClientAndProductBeans() {
         contextRunner
-                .withPropertyValues("sendbyte.api-key=sk_test_example")
+                .withPropertyValues(
+                        "sendbyte.api-key=sk_test_example", "sendbyte.base-uri=https://api.test")
                 .withUserConfiguration(UserClientConfiguration.class, UserEmailConfiguration.class)
                 .run(
                         context -> {
@@ -103,7 +107,9 @@ final class SendByteAutoConfigurationTest {
     void productBeansCanBeDisabledOrMissingFromTheClasspath() {
         contextRunner
                 .withPropertyValues(
-                        "sendbyte.api-key=sk_test_example", "sendbyte.email.enabled=false")
+                        "sendbyte.api-key=sk_test_example",
+                        "sendbyte.base-uri=https://api.test",
+                        "sendbyte.email.enabled=false")
                 .run(
                         context -> {
                             assertFalse(context.containsBean("emails"));
@@ -113,7 +119,8 @@ final class SendByteAutoConfigurationTest {
 
         contextRunner
                 .withClassLoader(new FilteredClassLoader("africa.sendbyte.email"))
-                .withPropertyValues("sendbyte.api-key=sk_test_example")
+                .withPropertyValues(
+                        "sendbyte.api-key=sk_test_example", "sendbyte.base-uri=https://api.test")
                 .run(
                         context -> {
                             assertFalse(context.containsBean("emails"));
@@ -156,7 +163,8 @@ final class SendByteAutoConfigurationTest {
         final CountingTransport transport = new CountingTransport(closeCount);
 
         contextRunner
-                .withPropertyValues("sendbyte.api-key=sk_test_example")
+                .withPropertyValues(
+                        "sendbyte.api-key=sk_test_example", "sendbyte.base-uri=https://api.test")
                 .withBean(
                         "secondCustomizer",
                         SendByteClientBuilderCustomizer.class,
@@ -181,7 +189,9 @@ final class SendByteAutoConfigurationTest {
         final CapturingTransport transport = new CapturingTransport();
         contextRunner
                 .withPropertyValues(
-                        "sendbyte.api-key=sk_test_example", "sendbyte.diagnostics.enabled=false")
+                        "sendbyte.api-key=sk_test_example",
+                        "sendbyte.base-uri=https://api.test",
+                        "sendbyte.diagnostics.enabled=false")
                 .withBean(HttpTransport.class, () -> transport)
                 .withBean(RequestObserver.class, () -> diagnostics -> observed.incrementAndGet())
                 .run(
@@ -217,6 +227,7 @@ final class SendByteAutoConfigurationTest {
         static final SendByteClient CLIENT =
                 SendByteClient.builder()
                         .apiKey("sk_test_user")
+                        .baseUri(URI.create("https://api.test"))
                         .transport(new CapturingTransport(), ResourceOwnership.CALLER)
                         .build();
 

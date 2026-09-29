@@ -10,10 +10,10 @@ final class SendByteQuarkusExtensionMetadataTest {
     void exposesStableExtensionMetadataWithoutLoadingProductClasses() {
         assertEquals("sendbyte", SendByteQuarkusExtensionMetadata.FEATURE);
         assertEquals(
-                "africa.sendbyte:sendbyte-quarkus-runtime",
+                "io.github.sendbyte-4j.sendbyte:sendbyte-quarkus-runtime",
                 SendByteQuarkusExtensionMetadata.RUNTIME_ARTIFACT);
         assertEquals(
-                "africa.sendbyte:sendbyte-quarkus-deployment",
+                "io.github.sendbyte-4j.sendbyte:sendbyte-quarkus-deployment",
                 SendByteQuarkusExtensionMetadata.DEPLOYMENT_ARTIFACT);
         assertTrue(
                 SendByteQuarkusExtensionMetadata.productTypes()

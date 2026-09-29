@@ -19,11 +19,11 @@ info:
     Default rate limit: 120 requests per minute per API key.
   contact:
     name: SendByte Support
-    email: support@sendbyte.africa
-    url: https://docs.sendbyte.africa
+    email: support@example.test
+    url: https://docs.example.test
 servers:
-  - url: https://api.sendbyte.africa
-    description: Production
+  - url: https://api.example.test
+    description: Placeholder until the production API domain is configured
 security:
   - apiKey: []
 tags:

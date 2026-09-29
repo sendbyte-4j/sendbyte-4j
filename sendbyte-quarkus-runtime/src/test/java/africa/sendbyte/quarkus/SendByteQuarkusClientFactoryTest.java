@@ -87,6 +87,7 @@ final class SendByteQuarkusClientFactoryTest {
         final SendByteClient existing =
                 SendByteClient.builder()
                         .apiKey("sk_test_existing")
+                        .baseUri(URI.create("https://api.test"))
                         .transport(
                                 new CountingTransport(transportCloseCount),
                                 ResourceOwnership.CLIENT)
@@ -110,6 +111,7 @@ final class SendByteQuarkusClientFactoryTest {
         final SendByteClient client =
                 SendByteClient.builder()
                         .apiKey("sk_test_example")
+                        .baseUri(URI.create("https://api.test"))
                         .transport(new CapturingTransport(), ResourceOwnership.CALLER)
                         .build();
         final SendByteQuarkusProductFactory products = new SendByteQuarkusProductFactory();
@@ -151,6 +153,7 @@ final class SendByteQuarkusClientFactoryTest {
     private static SendByteQuarkusConfig config() {
         final SendByteQuarkusConfig config = new SendByteQuarkusConfig();
         config.apiKey("sk_test_example");
+        config.baseUri(URI.create("https://api.test"));
         return config;
     }
 

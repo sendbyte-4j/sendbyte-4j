@@ -15,8 +15,8 @@ reviewed wire contract is `spec/openapi.yaml`.
 - No reference source file or example was copied verbatim or in substantial part. The
   current implementation was written against the OpenAPI contract, so no MIT-derived
   source currently requires an embedded attribution notice.
-- The shared `africa.sendbyte` namespace identifies the SendByte product. Reference
-  internal package layouts and plural `emails` models were not preserved by default.
+- The shared `africa.sendbyte` Java package namespace identifies the SendByte product.
+  Reference internal package layouts and plural `emails` models were not preserved by default.
 - The reference's OkHttp transport, exposed Jackson helper, mutable response shapes, and
   accidental public internals were not copied. Core instead uses the JDK HTTP client and
   keeps JSON implementation details internal.

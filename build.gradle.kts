@@ -1,4 +1,3 @@
-import java.net.URI
 import java.security.MessageDigest
 import java.util.zip.ZipFile
 import org.gradle.api.plugins.JavaPlatformPlugin
@@ -42,7 +41,7 @@ val publishedProjects = listOf(
 )
 
 allprojects {
-    group = "africa.sendbyte"
+    group = "io.github.sendbyte-4j.sendbyte"
     version = "0.1.0-SNAPSHOT"
 
     repositories {
@@ -369,7 +368,7 @@ val verifyStableModuleSets by tasks.registering {
 }
 
 val openApiSnapshot = layout.projectDirectory.file("spec/openapi.yaml")
-val expectedOpenApiSha256 = "01c89ddb9d553a9738b02a4c76162a8435c1f5ae0482a384aba4b68d94155b72"
+val expectedOpenApiSha256 = "de37a5be7fee93eebbec0955f5f3ceff7aed856ab2f3da61fd1dadc3c28815c9"
 
 fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256")
     .digest(this)
@@ -478,14 +477,9 @@ tasks.register("checkOpenApiDrift") {
     description = "Checks whether SendByte's published OpenAPI contract differs from the reviewed snapshot."
 
     doLast {
-        val upstream = URI("https://docs.sendbyte.africa/api-reference/openapi.yaml")
-            .toURL()
-            .openStream()
-            .use { it.readBytes() }
-        val upstreamSha256 = upstream.sha256()
-        check(upstreamSha256 == expectedOpenApiSha256) {
-            "The upstream OpenAPI contract changed (reviewed $expectedOpenApiSha256, upstream $upstreamSha256). " +
-                "Download and review it; do not overwrite the snapshot automatically."
-        }
+        error(
+            "No public OpenAPI upstream is configured. Set the canonical contract URL after the " +
+                "production documentation domain exists, then restore this drift check."
+        )
     }
 }

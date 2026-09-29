@@ -25,26 +25,40 @@ import org.junit.jupiter.api.Test;
 final class SendByteClientTest {
     @Test
     void rejectsUnsafeOrInvalidConfiguration() {
-        assertThrows(NullPointerException.class, () -> SendByteClient.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> SendByteClient.builder().build());
         assertThrows(
-                IllegalArgumentException.class, () -> SendByteClient.builder().apiKey(" ").build());
+                IllegalArgumentException.class,
+                () ->
+                        SendByteClient.builder()
+                                .apiKey(" ")
+                                .baseUri(URI.create("https://api.test"))
+                                .build());
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SendByteClient.builder().baseUri(URI.create("http://api.example.com")));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> SendByteClient.builder().apiKey("key").requestTimeout(Duration.ZERO));
+                () ->
+                        SendByteClient.builder()
+                                .apiKey("key")
+                                .baseUri(URI.create("https://api.test"))
+                                .requestTimeout(Duration.ZERO));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         SendByteClient.builder()
                                 .apiKey("key")
+                                .baseUri(URI.create("https://api.test"))
                                 .connectTimeout(Duration.ofSeconds(2))
                                 .requestTimeout(Duration.ofSeconds(1))
                                 .build());
         assertThrows(
                 IllegalArgumentException.class,
-                () -> SendByteClient.builder().apiKey("key").maxResponseBodyBytes(0));
+                () ->
+                        SendByteClient.builder()
+                                .apiKey("key")
+                                .baseUri(URI.create("https://api.test"))
+                                .maxResponseBodyBytes(0));
     }
 
     @Test
@@ -53,6 +67,7 @@ final class SendByteClientTest {
         final SendByteClient client =
                 SendByteClient.builder()
                         .apiKey("sk_test_example")
+                        .baseUri(URI.create("https://api.test"))
                         .transport(transport, ResourceOwnership.CLIENT)
                         .build();
 
@@ -70,6 +85,7 @@ final class SendByteClientTest {
         final SendByteClient client =
                 SendByteClient.builder()
                         .apiKey("sk_test_example")
+                        .baseUri(URI.create("https://api.test"))
                         .transport(transport, ResourceOwnership.CALLER)
                         .build();
 

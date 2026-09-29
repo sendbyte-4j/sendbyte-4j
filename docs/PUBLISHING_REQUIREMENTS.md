@@ -9,9 +9,8 @@ This document records the external setup and repository work required before pub
 ## Maven Central account and ownership
 
 - Create a Sonatype Central Portal account.
-- Choose and verify the publishing namespace.
-- If the group remains `africa.sendbyte`, prove control of `sendbyte.africa`, normally with a DNS TXT record.
-- If that domain cannot be verified, select a namespace the publisher controls, such as `io.github.<username>`, before the first release.
+- Verify the `io.github.sendbyte-4j` publishing namespace for the `sendbyte-4j`
+  GitHub organization/account before the first release.
 - Generate a Central Portal user token and store it only in the release environment or repository secrets.
 
 ## Project identity
