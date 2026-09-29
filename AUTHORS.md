@@ -1,4 +1,4 @@
 # Authors
 
-- `[Author One]` — `[GitHub profile or contact]`
-- `[Author Two]` — `[GitHub profile or contact]`
+- `Emmanuel Ogbinaka` — `https://github.com/masterscode`
+- `Fabian Emmanuel` — `https://github.com/fabian-emmanuel`
