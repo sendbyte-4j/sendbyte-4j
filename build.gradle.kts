@@ -151,7 +151,6 @@ spotless {
             ".gitignore",
             ".github/**/*.yml",
             "docs/**/*.md",
-            "tasks/**/*.md",
             "config/**/*.json",
             "config/**/*.xml",
             "**/build.gradle.kts",
@@ -268,7 +267,6 @@ val secretScanFiles = fileTree(layout.projectDirectory) {
         "sendbyte-*/src/**/*.yaml",
         "sendbyte-*/src/**/*.yml",
         "spec/**/*.yaml",
-        "tasks/**/*.md",
     )
     exclude(
         "**/.gradle/**",

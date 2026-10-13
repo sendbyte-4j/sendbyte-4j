@@ -8,7 +8,7 @@ Implementation repository: `sendbyte-4j/`
 
 Reference implementation: `../SendByte-Java-main/`
 
-This document records the intended architecture for the new SendByte Java SDK. `SendByte-Java-main` is reference material whose useful ideas may be adapted; this is not a migration or compatibility project. The delivery backlog and acceptance criteria live in [`../tasks/`](../tasks/).
+This document records the intended architecture for the new SendByte Java SDK. `SendByte-Java-main` is reference material whose useful ideas may be adapted; this is not a migration or compatibility project. The delivery backlog is tracked in [GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues).
 
 Handwritten Java code follows [`CODING_CONVENTIONS.md`](CODING_CONVENTIONS.md).
 
@@ -350,4 +350,4 @@ The work should proceed in dependency order:
 8. Add Spring Boot and Quarkus integrations.
 9. Complete compatibility, security, documentation, and release gates.
 
-The detailed deliverables and acceptance criteria are maintained in [`../tasks/README.md`](../tasks/README.md) and its linked task files.
+The detailed deliverables and acceptance criteria are maintained in [GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues).

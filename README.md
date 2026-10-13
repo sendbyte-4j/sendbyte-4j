@@ -36,6 +36,8 @@ To exercise tests on a specific installed JDK:
 ```
 
 CI runs the test suite on Java 11, 17, 21, and 25, runs the release gates once on Java 17,
-and checks that repeated builds produce identical archives. The delivery sequence and acceptance criteria are tracked in [`tasks/`](tasks/README.md), while architectural decisions are recorded in [`docs/`](docs/ARCHITECTURE.md).
+and checks that repeated builds produce identical archives. Project work is tracked in
+[GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues), while architectural
+decisions are recorded in [`docs/`](docs/ARCHITECTURE.md).
 
-Java contributions follow the repository's [`coding conventions`](docs/CODING_CONVENTIONS.md). Coding agents also receive these rules through the checked-in `AGENTS.md` files so they persist across sessions.
+For help using the SDK from a coding agent, see the [consumer AI agent guide](docs/AI_AGENT_GUIDE.md).
