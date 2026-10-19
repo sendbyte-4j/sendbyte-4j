@@ -37,7 +37,7 @@ To exercise tests on a specific installed JDK:
 
 CI runs the test suite on Java 11, 17, 21, and 25, runs the release gates once on Java 17,
 and checks that repeated builds produce identical archives. Project work is tracked in
-[GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues), while architectural
-decisions are recorded in [`docs/`](docs/ARCHITECTURE.md).
+[GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues).
 
-For help using the SDK from a coding agent, see the [consumer AI agent guide](docs/AI_AGENT_GUIDE.md).
+See [coding conventions](CODING_CONVENTIONS.md) for contributions, [security policy](SECURITY.md)
+for vulnerability reports, and the [consumer AI agent guide](AI_AGENT_GUIDE.md) for SDK usage.

@@ -64,7 +64,6 @@ When working in an application that uses this SDK:
 
 ## Reference material
 
-- [Project README](../README.md) for the current implementation and build status.
-- [Versioned OpenAPI snapshot](../spec/openapi.yaml) for the wire contract. A contract operation is not evidence that a corresponding SDK method is implemented or released.
-- [API contract audit](API_CONTRACT_AUDIT.md) for known contract and implementation gaps.
-- [Security guidance](SECURITY.md) for handling credentials and customer data.
+- [Project README](README.md) for the current implementation and build status.
+- [Versioned OpenAPI snapshot](spec/openapi.yaml) for the wire contract. A contract operation is not evidence that a corresponding SDK method is implemented or released.
+- [Security policy](SECURITY.md) for handling credentials and customer data.
