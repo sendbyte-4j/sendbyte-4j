@@ -42,7 +42,7 @@ val publishedProjects = listOf(
 
 allprojects {
     group = "io.github.sendbyte-4j.sendbyte"
-    version = "0.1.0-SNAPSHOT"
+    version = "0.1.0"
 
     repositories {
         mavenCentral()
@@ -364,6 +364,8 @@ val verifyStableModuleSets by tasks.registering {
 }
 
 val openApiSnapshot = layout.projectDirectory.file("spec/openapi.yaml")
+val openApiUpstreamUrl = providers.gradleProperty("openApiUpstreamUrl")
+    .orElse(providers.environmentVariable("OPENAPI_UPSTREAM_URL"))
 val expectedOpenApiSha256 = "de37a5be7fee93eebbec0955f5f3ceff7aed856ab2f3da61fd1dadc3c28815c9"
 
 fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256")
@@ -470,12 +472,32 @@ val verifyRelease by tasks.registering {
 
 tasks.register("checkOpenApiDrift") {
     group = "verification"
-    description = "Checks whether SendByte's published OpenAPI contract differs from the reviewed snapshot."
+    description = "Compares the reviewed OpenAPI snapshot with its configured public upstream."
+
+    val upstreamUrl = openApiUpstreamUrl.orNull?.trim()
+    onlyIf {
+        if (upstreamUrl.isNullOrEmpty()) {
+            logger.lifecycle(
+                "Skipping OpenAPI drift check: set OPENAPI_UPSTREAM_URL or " +
+                    "-PopenApiUpstreamUrl to the canonical contract URL."
+            )
+            false
+        } else {
+            true
+        }
+    }
 
     doLast {
-        error(
-            "No public OpenAPI upstream is configured. Set the canonical contract URL after the " +
-                "production documentation domain exists, then restore this drift check."
-        )
+        val connection = java.net.URI(upstreamUrl!!).toURL().openConnection()
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 30_000
+        val upstreamSha256 = connection.getInputStream().use { it.readBytes().sha256() }
+        val snapshotSha256 = openApiSnapshot.asFile.readBytes().sha256()
+
+        check(upstreamSha256 == snapshotSha256) {
+            "The public OpenAPI contract differs from spec/openapi.yaml " +
+                "(upstream $upstreamSha256, snapshot $snapshotSha256). Review the upstream " +
+                "diff and update the snapshot, checksum, fixtures, and implementation together."
+        }
     }
 }

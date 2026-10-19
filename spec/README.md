@@ -12,7 +12,7 @@ Do not edit the snapshot by hand. When the upstream contract changes:
 
 1. Download it to a temporary location.
 2. Review operation, schema, and compatibility changes.
-3. Update the snapshot, checksum, contract audit, fixtures, and implementation together.
-4. Record breaking or ambiguous changes in an ADR before merging.
+3. Update the snapshot, checksum, fixtures, and implementation together.
+4. Record breaking or ambiguous changes in the pull request before merging.
 
-The normal `check` lifecycle validates the local checksum. Run `./gradlew checkOpenApiDrift` to compare it with the published contract; a scheduled/manual CI workflow runs the same check without automatically replacing the reviewed snapshot.
+The normal `check` lifecycle validates the local checksum. Run `./gradlew checkOpenApiDrift` to compare against the public contract when its URL is configured with `OPENAPI_UPSTREAM_URL` or `-PopenApiUpstreamUrl`. The task is skipped while no canonical upstream URL is available; it never replaces the reviewed snapshot.

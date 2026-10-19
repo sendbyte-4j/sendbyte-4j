@@ -4,7 +4,7 @@ This guide gives coding agents the project facts they need when adding SendByte 
 
 ## Check release availability first
 
-This repository currently builds version `0.1.0-SNAPSHOT`; it is not a stable release. Before adding a dependency, check the project's release page or ask the application owner for the exact published version and repository. Do not invent a version or assume the snapshot is available from Maven Central.
+This repository is configured to build version `0.1.0`; that does not guarantee the artifacts have been published. Before adding a dependency, check the project's release page or ask the application owner for the exact published version and repository. Do not assume the version is available from Maven Central.
 
 The artifact group is `io.github.sendbyte-4j.sendbyte`. Add the core and email modules at the same release version:
 
