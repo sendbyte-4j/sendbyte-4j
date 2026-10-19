@@ -32,6 +32,6 @@ public final class RateLimitException extends ApiException {
     }
 
     public Duration retryAfter() {
-        return this.retryAfter;
+        return retryAfter;
     }
 }

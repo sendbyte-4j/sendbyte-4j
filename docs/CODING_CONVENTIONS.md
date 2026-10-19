@@ -21,7 +21,8 @@ These conventions apply to handwritten Java production code, tests, examples, an
 
 - Use `this.` to make same-class instance method calls explicit when it clarifies that the behavior is internal.
 - Do not use `this.` as a blanket qualifier for fields or for methods invoked through collaborator objects.
-- Static members, local variables, and collaborator calls are not qualified with `this`.
+- Qualify same-class static method calls with their declaring class (for example, `RetryPolicy.builder()`).
+- Local variables and collaborator calls are not qualified with `this`.
 - Constructor delegation continues to use the normal `this(...)` syntax.
 
 ## Layout

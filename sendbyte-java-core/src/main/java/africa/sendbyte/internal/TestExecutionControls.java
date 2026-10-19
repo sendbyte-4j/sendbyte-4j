@@ -23,8 +23,8 @@ public final class TestExecutionControls {
         this.random = () -> randomValue;
         this.sleeper =
                 delay -> {
-                    this.clock.advance(delay);
-                    this.nanos.addAndGet(delay.toNanos());
+                    clock.advance(delay);
+                    nanos.addAndGet(delay.toNanos());
                 };
     }
 
@@ -33,24 +33,24 @@ public final class TestExecutionControls {
     }
 
     Clock clock() {
-        return this.clock;
+        return clock;
     }
 
     Ticker ticker() {
-        return this.nanos::get;
+        return nanos::get;
     }
 
     Sleeper sleeper() {
-        return this.sleeper;
+        return sleeper;
     }
 
     DoubleSupplier random() {
-        return this.random;
+        return random;
     }
 
     public void advance(final Duration duration) {
-        this.clock.advance(duration);
-        this.nanos.addAndGet(duration.toNanos());
+        clock.advance(duration);
+        nanos.addAndGet(duration.toNanos());
     }
 
     private static final class MutableClock extends Clock {
@@ -72,11 +72,11 @@ public final class TestExecutionControls {
 
         @Override
         public Instant instant() {
-            return Instant.ofEpochMilli(this.epochMillis.get());
+            return Instant.ofEpochMilli(epochMillis.get());
         }
 
         private void advance(final Duration duration) {
-            this.epochMillis.addAndGet(duration.toMillis());
+            epochMillis.addAndGet(duration.toMillis());
         }
     }
 }

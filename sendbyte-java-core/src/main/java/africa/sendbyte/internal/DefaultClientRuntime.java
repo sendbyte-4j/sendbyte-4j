@@ -105,31 +105,31 @@ public final class DefaultClientRuntime implements ClientRuntime {
     @Override
     public <T> DetailedResponse<T> executeDetailed(
             final ClientRequest request, final Class<T> responseType) {
-        this.support.ensureOpen();
-        final ExecutionState state = this.support.newState(request);
+        support.ensureOpen();
+        final ExecutionState state = support.newState(request);
 
         while (true) {
             state.startAttempt();
-            this.support.ensureOpen();
-            this.support.ensureDeadline(state);
+            support.ensureOpen();
+            support.ensureDeadline(state);
 
             try {
                 final TransportResponse response =
-                        this.transport.execute(this.support.transportRequest(request, state));
-                final RetryAttempt retry = this.support.retryForResponse(request, response, state);
+                        transport.execute(support.transportRequest(request, state));
+                final RetryAttempt retry = support.retryForResponse(request, response, state);
                 if (retry.retry()) {
-                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    support.sleepBeforeRetry(retry.delay(), state);
                     continue;
                 }
 
-                return this.support.success(request, response, responseType, state);
+                return support.success(request, response, responseType, state);
             } catch (final InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw this.support.failure(
+                throw support.failure(
                         request,
                         new SendByteCancellationException(
                                 "The SendByte API request was canceled",
-                                this.support.diagnostics(
+                                support.diagnostics(
                                         request,
                                         state,
                                         null,
@@ -141,9 +141,9 @@ public final class DefaultClientRuntime implements ClientRuntime {
                         FailureCategory.CANCELLATION,
                         false);
             } catch (final HttpTimeoutException exception) {
-                final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+                final RetryAttempt retry = support.retryForFailure(request, state, true);
                 if (retry.retry()) {
-                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    support.sleepBeforeRetry(retry.delay(), state);
                     continue;
                 }
                 throw support.failure(
@@ -163,17 +163,17 @@ public final class DefaultClientRuntime implements ClientRuntime {
                         FailureCategory.TIMEOUT,
                         false);
             } catch (final IOException exception) {
-                final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+                final RetryAttempt retry = support.retryForFailure(request, state, true);
                 if (retry.retry()) {
-                    this.support.sleepBeforeRetry(retry.delay(), state);
+                    support.sleepBeforeRetry(retry.delay(), state);
                     continue;
                 }
-                throw this.support.failure(
+                throw support.failure(
                         request,
                         new ConnectionException(
                                 "Could not reach the SendByte API",
                                 exception,
-                                this.support.diagnostics(
+                                support.diagnostics(
                                         request,
                                         state,
                                         null,
@@ -185,12 +185,12 @@ public final class DefaultClientRuntime implements ClientRuntime {
                         FailureCategory.CONNECTION,
                         false);
             } catch (final SerializationException exception) {
-                throw this.support.failure(
+                throw support.failure(
                         request,
                         new SerializationException(
                                 exception.getMessage(),
                                 exception,
-                                this.support.diagnostics(
+                                support.diagnostics(
                                         request,
                                         state,
                                         null,
@@ -218,9 +218,9 @@ public final class DefaultClientRuntime implements ClientRuntime {
     public <T> CompletableFuture<DetailedResponse<T>> executeDetailedAsync(
             final ClientRequest request, final Class<T> responseType) {
         final AsyncOperation<T> operation = new AsyncOperation<>();
-        this.lifecycle.register(operation);
-        operation.whenComplete((ignored, failure) -> this.lifecycle.deregister(operation));
-        this.dispatchAsync(request, responseType, this.support.newState(request), operation);
+        lifecycle.register(operation);
+        operation.whenComplete((ignored, failure) -> lifecycle.deregister(operation));
+        this.dispatchAsync(request, responseType, support.newState(request), operation);
         return operation;
     }
 
@@ -233,11 +233,11 @@ public final class DefaultClientRuntime implements ClientRuntime {
         if (operation.isDone()) return;
 
         try {
-            this.support.ensureOpen();
-            this.support.ensureDeadline(state);
+            support.ensureOpen();
+            support.ensureDeadline(state);
             state.startAttempt();
             final CompletableFuture<TransportResponse> current =
-                    this.transport.executeAsync(this.support.transportRequest(request, state));
+                    transport.executeAsync(support.transportRequest(request, state));
             operation.current(current);
             current.whenCompleteAsync(
                     (response, failure) -> {
@@ -257,7 +257,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
                                     request, responseType, state, operation, response);
                         }
                     },
-                    this.executor);
+                    executor);
         } catch (final SendByteException exception) {
             operation.completeExceptionally(exception);
         } catch (final RuntimeException exception) {
@@ -267,7 +267,7 @@ public final class DefaultClientRuntime implements ClientRuntime {
                             new ConnectionException(
                                     "Could not reach the SendByte API",
                                     exception,
-                                    this.support.diagnostics(
+                                    support.diagnostics(
                                             request,
                                             state,
                                             null,
@@ -291,13 +291,13 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final RetryAttempt retry = support.retryForResponse(request, response, state);
             if (retry.retry()) {
                 operation.scheduled(
-                        this.executor.schedule(
+                        executor.schedule(
                                 () -> this.dispatchAsync(request, responseType, state, operation),
                                 retry.delay().toNanos(),
                                 TimeUnit.NANOSECONDS));
                 return;
             }
-            operation.complete(this.support.success(request, response, responseType, state));
+            operation.complete(support.success(request, response, responseType, state));
         } catch (final RuntimeException exception) {
             operation.completeExceptionally(exception);
         }
@@ -310,10 +310,10 @@ public final class DefaultClientRuntime implements ClientRuntime {
             final AsyncOperation<T> operation,
             final Throwable failure) {
         try {
-            final RetryAttempt retry = this.support.retryForFailure(request, state, true);
+            final RetryAttempt retry = support.retryForFailure(request, state, true);
             if (retry.retry()) {
                 operation.scheduled(
-                        this.executor.schedule(
+                        executor.schedule(
                                 () -> this.dispatchAsync(request, responseType, state, operation),
                                 retry.delay().toNanos(),
                                 TimeUnit.NANOSECONDS));
@@ -329,12 +329,12 @@ public final class DefaultClientRuntime implements ClientRuntime {
                             ? new SendByteTimeoutException(
                                     "The SendByte API request timed out",
                                     failure,
-                                    this.support.diagnostics(
+                                    support.diagnostics(
                                             request, state, null, null, category, false))
                             : new ConnectionException(
                                     "Could not reach the SendByte API",
                                     failure,
-                                    this.support.diagnostics(
+                                    support.diagnostics(
                                             request, state, null, null, category, false));
             operation.completeExceptionally(
                     support.failure(request, exception, state, null, category, false));

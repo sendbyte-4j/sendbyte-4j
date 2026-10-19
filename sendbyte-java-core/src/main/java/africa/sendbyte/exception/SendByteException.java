@@ -29,6 +29,6 @@ public class SendByteException extends RuntimeException {
     }
 
     public RequestDiagnostics diagnostics() {
-        return this.diagnostics;
+        return diagnostics;
     }
 }

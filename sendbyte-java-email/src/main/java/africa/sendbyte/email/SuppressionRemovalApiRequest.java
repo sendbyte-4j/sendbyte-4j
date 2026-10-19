@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.email.request.CreateSuppressionRemovalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 final class SuppressionRemovalApiRequest {

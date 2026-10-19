@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.email.request.RenderTemplateRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 

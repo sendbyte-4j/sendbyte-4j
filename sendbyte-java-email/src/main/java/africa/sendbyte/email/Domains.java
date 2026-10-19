@@ -2,6 +2,7 @@ package africa.sendbyte.email;
 
 import africa.sendbyte.Page;
 import africa.sendbyte.SendByteClient;
+import africa.sendbyte.email.request.CreateDomainRequest;
 import africa.sendbyte.internal.AsyncSupport;
 import africa.sendbyte.spi.ClientRequest;
 import africa.sendbyte.spi.ClientRuntime;

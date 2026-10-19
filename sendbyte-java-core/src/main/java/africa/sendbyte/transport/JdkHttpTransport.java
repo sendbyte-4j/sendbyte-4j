@@ -6,6 +6,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /** Default transport backed by the Java 11 HTTP client. */
@@ -21,21 +22,24 @@ public final class JdkHttpTransport implements HttpTransport {
     }
 
     public JdkHttpTransport(final HttpClient client) {
-        this.client = java.util.Objects.requireNonNull(client, "client");
+        this.client = Objects.requireNonNull(client, "client");
     }
 
     @Override
     public TransportResponse execute(final TransportRequest request)
             throws IOException, InterruptedException {
-        return adapt(
-                this.client.send(toJdkRequest(request), HttpResponse.BodyHandlers.ofByteArray()));
+        return JdkHttpTransport.adapt(
+                client.send(
+                        JdkHttpTransport.toJdkRequest(request),
+                        HttpResponse.BodyHandlers.ofByteArray()));
     }
 
     @Override
     public CompletableFuture<TransportResponse> executeAsync(final TransportRequest request) {
         final CompletableFuture<HttpResponse<byte[]>> source =
-                this.client.sendAsync(
-                        toJdkRequest(request), HttpResponse.BodyHandlers.ofByteArray());
+                client.sendAsync(
+                        JdkHttpTransport.toJdkRequest(request),
+                        HttpResponse.BodyHandlers.ofByteArray());
         final CompletableFuture<TransportResponse> result = new CompletableFuture<>();
 
         source.whenComplete(
@@ -43,7 +47,7 @@ public final class JdkHttpTransport implements HttpTransport {
                     if (failure != null) {
                         result.completeExceptionally(failure);
                     } else {
-                        result.complete(adapt(response));
+                        result.complete(JdkHttpTransport.adapt(response));
                     }
                 });
         result.whenComplete(

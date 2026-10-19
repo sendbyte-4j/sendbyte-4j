@@ -19,11 +19,11 @@ final class ExecutionState {
         this.startedAtNanos = ticker.nanoTime();
         final Duration timeout =
                 request.options().timeout() == null ? defaultTimeout : request.options().timeout();
-        this.deadlineNanos = this.startedAtNanos + timeout.toNanos();
+        this.deadlineNanos = startedAtNanos + timeout.toNanos();
     }
 
     ClientRequest request() {
-        return this.request;
+        return request;
     }
 
     /**
@@ -33,34 +33,34 @@ final class ExecutionState {
      * <p>Attempts of one execution never overlap, so the cached value needs no synchronization.
      */
     byte[] encodedBody(final Function<ClientRequest, byte[]> encoder) {
-        if (!this.encodedBodyResolved) {
-            this.encodedBody = encoder.apply(this.request);
+        if (!encodedBodyResolved) {
+            this.encodedBody = encoder.apply(request);
             this.encodedBodyResolved = true;
         }
-        return this.encodedBody;
+        return encodedBody;
     }
 
     void startAttempt() {
-        this.attemptCount++;
+        attemptCount++;
     }
 
     int attemptCount() {
-        return this.attemptCount;
+        return attemptCount;
     }
 
     Duration retryDelay() {
-        return this.retryDelay;
+        return retryDelay;
     }
 
     void addRetryDelay(final Duration delay) {
-        this.retryDelay = this.retryDelay.plus(delay);
+        this.retryDelay = retryDelay.plus(delay);
     }
 
     Duration remaining(final Ticker ticker) {
-        return Duration.ofNanos(this.deadlineNanos - ticker.nanoTime());
+        return Duration.ofNanos(deadlineNanos - ticker.nanoTime());
     }
 
     Duration totalDuration(final Ticker ticker) {
-        return Duration.ofNanos(Math.max(0L, ticker.nanoTime() - this.startedAtNanos));
+        return Duration.ofNanos(Math.max(0L, ticker.nanoTime() - startedAtNanos));
     }
 }

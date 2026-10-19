@@ -35,7 +35,7 @@ public final class AsyncSupport {
         source.whenComplete(
                 (value, failure) -> {
                     if (failure != null) {
-                        result.completeExceptionally(unwrap(failure));
+                        result.completeExceptionally(AsyncSupport.unwrap(failure));
                     } else {
                         try {
                             result.complete(mapper.apply(value));

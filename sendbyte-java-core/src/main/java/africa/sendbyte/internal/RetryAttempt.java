@@ -20,10 +20,10 @@ final class RetryAttempt {
     }
 
     boolean retry() {
-        return this.retry;
+        return retry;
     }
 
     Duration delay() {
-        return this.delay;
+        return delay;
     }
 }

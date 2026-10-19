@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /** Request-level overrides for the shared execution pipeline. */
 public final class RequestOptions {
-    public static final RequestOptions DEFAULT = builder().build();
+    public static final RequestOptions DEFAULT = RequestOptions.builder().build();
 
     private final Duration timeout;
     private final Integer maxAttempts;
@@ -20,11 +20,11 @@ public final class RequestOptions {
     }
 
     public Duration timeout() {
-        return this.timeout;
+        return timeout;
     }
 
     public Integer maxAttempts() {
-        return this.maxAttempts;
+        return maxAttempts;
     }
 
     public static final class Builder {
@@ -34,7 +34,7 @@ public final class RequestOptions {
         private Builder() {}
 
         public Builder timeout(final Duration timeout) {
-            this.timeout = positive(timeout, "timeout");
+            this.timeout = Builder.positive(timeout, "timeout");
             return this;
         }
 

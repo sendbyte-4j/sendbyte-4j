@@ -21,25 +21,25 @@ public final class ClientLifecycle {
             Collections.newSetFromMap(new ConcurrentHashMap<AsyncOperation<?>, Boolean>());
 
     public boolean isClosed() {
-        return this.closed.get();
+        return closed.get();
     }
 
     public void ensureOpen() {
-        if (this.closed.get()) {
+        if (closed.get()) {
             throw new IllegalStateException(CLOSED_MESSAGE);
         }
     }
 
     <T> AsyncOperation<T> register(final AsyncOperation<T> operation) {
-        this.inFlight.add(operation);
-        if (this.closed.get() && this.inFlight.remove(operation)) {
+        inFlight.add(operation);
+        if (closed.get() && inFlight.remove(operation)) {
             operation.abort(new IllegalStateException(CLOSED_MESSAGE));
         }
         return operation;
     }
 
     void deregister(final AsyncOperation<?> operation) {
-        this.inFlight.remove(operation);
+        inFlight.remove(operation);
     }
 
     /**
@@ -49,13 +49,13 @@ public final class ClientLifecycle {
      * @return {@code true} when this call performed the open-to-closed transition
      */
     public boolean shutdown() {
-        if (!this.closed.compareAndSet(false, true)) {
+        if (!closed.compareAndSet(false, true)) {
             return false;
         }
-        for (final AsyncOperation<?> operation : this.inFlight) {
+        for (final AsyncOperation<?> operation : inFlight) {
             operation.abort(new IllegalStateException(CLOSED_MESSAGE));
         }
-        this.inFlight.clear();
+        inFlight.clear();
         return true;
     }
 }

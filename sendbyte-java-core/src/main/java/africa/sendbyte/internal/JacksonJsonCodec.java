@@ -17,7 +17,7 @@ final class JacksonJsonCodec {
 
     byte[] write(final Object value) {
         try {
-            return this.mapper.writeValueAsBytes(value);
+            return mapper.writeValueAsBytes(value);
         } catch (final Exception exception) {
             throw new SerializationException(
                     "Could not encode the SendByte request body", exception);
@@ -26,7 +26,7 @@ final class JacksonJsonCodec {
 
     <T> T read(final byte[] value, final Class<T> type) {
         try {
-            return this.mapper.readValue(value, type);
+            return mapper.readValue(value, type);
         } catch (final Exception exception) {
             throw new SerializationException(
                     "Could not decode the SendByte response body", exception);

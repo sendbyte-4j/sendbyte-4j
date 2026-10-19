@@ -11,13 +11,13 @@ import java.util.Objects;
  */
 public final class RetryPolicy {
     public static final RetryPolicy DEFAULT =
-            builder()
+            RetryPolicy.builder()
                     .maxAttempts(3)
                     .initialBackoff(Duration.ofMillis(100))
                     .maxBackoff(Duration.ofSeconds(2))
                     .jitterRatio(0.2d)
                     .build();
-    public static final RetryPolicy NONE = builder().maxAttempts(1).build();
+    public static final RetryPolicy NONE = RetryPolicy.builder().maxAttempts(1).build();
 
     private final int maxAttempts;
     private final Duration initialBackoff;
@@ -36,19 +36,19 @@ public final class RetryPolicy {
     }
 
     public int maxAttempts() {
-        return this.maxAttempts;
+        return maxAttempts;
     }
 
     public Duration initialBackoff() {
-        return this.initialBackoff;
+        return initialBackoff;
     }
 
     public Duration maxBackoff() {
-        return this.maxBackoff;
+        return maxBackoff;
     }
 
     public double jitterRatio() {
-        return this.jitterRatio;
+        return jitterRatio;
     }
 
     public static final class Builder {
@@ -68,12 +68,12 @@ public final class RetryPolicy {
         }
 
         public Builder initialBackoff(final Duration initialBackoff) {
-            this.initialBackoff = positiveOrZero(initialBackoff, "initialBackoff");
+            this.initialBackoff = Builder.positiveOrZero(initialBackoff, "initialBackoff");
             return this;
         }
 
         public Builder maxBackoff(final Duration maxBackoff) {
-            this.maxBackoff = positiveOrZero(maxBackoff, "maxBackoff");
+            this.maxBackoff = Builder.positiveOrZero(maxBackoff, "maxBackoff");
             return this;
         }
 
@@ -86,7 +86,7 @@ public final class RetryPolicy {
         }
 
         public RetryPolicy build() {
-            if (this.maxBackoff.compareTo(this.initialBackoff) < 0) {
+            if (maxBackoff.compareTo(initialBackoff) < 0) {
                 throw new IllegalArgumentException(
                         "maxBackoff must be greater than or equal to initialBackoff");
             }

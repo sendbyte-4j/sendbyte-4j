@@ -16,14 +16,14 @@ public final class DetailedResponse<T> {
     }
 
     public T value() {
-        return this.value;
+        return value;
     }
 
     public ResponseMetadata metadata() {
-        return this.metadata;
+        return metadata;
     }
 
     public RequestDiagnostics diagnostics() {
-        return this.diagnostics;
+        return diagnostics;
     }
 }

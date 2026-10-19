@@ -25,27 +25,27 @@ public final class FakeHttpTransport implements HttpTransport {
     private final AtomicInteger closeCount = new AtomicInteger();
 
     public FakeHttpTransport enqueue(final TransportResponse response) {
-        this.outcomes.add(Objects.requireNonNull(response, "response"));
+        outcomes.add(Objects.requireNonNull(response, "response"));
         return this;
     }
 
     public FakeHttpTransport enqueueFailure(final IOException failure) {
-        this.outcomes.add(Objects.requireNonNull(failure, "failure"));
+        outcomes.add(Objects.requireNonNull(failure, "failure"));
         return this;
     }
 
     public List<TransportRequest> requests() {
-        return Collections.unmodifiableList(this.requests);
+        return Collections.unmodifiableList(requests);
     }
 
     public int closeCount() {
-        return this.closeCount.get();
+        return closeCount.get();
     }
 
     @Override
     public TransportResponse execute(final TransportRequest request) throws IOException {
-        this.requests.add(request);
-        final Object outcome = this.outcomes.remove();
+        requests.add(request);
+        final Object outcome = outcomes.remove();
         if (outcome instanceof IOException) {
             throw (IOException) outcome;
         }
@@ -65,6 +65,6 @@ public final class FakeHttpTransport implements HttpTransport {
 
     @Override
     public void close() {
-        this.closeCount.incrementAndGet();
+        closeCount.incrementAndGet();
     }
 }

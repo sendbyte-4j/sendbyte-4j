@@ -36,7 +36,7 @@ public final class SendByteClient implements AutoCloseable {
     private SendByteClient(final Builder builder) {
         final CredentialsProvider credentials =
                 Objects.requireNonNull(builder.credentialsProvider, "credentialsProvider");
-        validateCredentials(credentials.apiKey());
+        SendByteClient.validateCredentials(credentials.apiKey());
 
         this.transport =
                 builder.transport != null
@@ -45,20 +45,20 @@ public final class SendByteClient implements AutoCloseable {
 
         this.transportOwnership =
                 builder.transport != null ? builder.transportOwnership : ResourceOwnership.CLIENT;
-        this.retryExecutor = newRetryExecutor();
+        this.retryExecutor = SendByteClient.newRetryExecutor();
 
         this.runtime =
                 new DefaultClientRuntime(
                         builder.baseUri,
                         credentials,
-                        this.transport,
+                        transport,
                         builder.requestTimeout,
                         builder.userAgent,
                         builder.retryPolicy,
                         builder.requestObserver,
                         builder.maxResponseBodyBytes,
-                        this.retryExecutor,
-                        this.lifecycle);
+                        retryExecutor,
+                        lifecycle);
     }
 
     public static Builder builder() {
@@ -70,23 +70,23 @@ public final class SendByteClient implements AutoCloseable {
      * normally passes this client to a product facade instead.
      */
     public ClientRuntime runtime() {
-        this.lifecycle.ensureOpen();
-        return this.runtime;
+        lifecycle.ensureOpen();
+        return runtime;
     }
 
     public boolean isClosed() {
-        return this.lifecycle.isClosed();
+        return lifecycle.isClosed();
     }
 
     @Override
     public void close() {
-        if (this.lifecycle.shutdown() && this.transportOwnership == ResourceOwnership.CLIENT) {
-            this.transport.close();
+        if (lifecycle.shutdown() && this.transportOwnership == ResourceOwnership.CLIENT) {
+            transport.close();
         }
-        if (this.lifecycle.isClosed()) {
+        if (lifecycle.isClosed()) {
             // shutdown() rather than shutdownNow(): the completion callbacks queued by the sweep in
             // lifecycle.shutdown() still have to run so that derived futures complete.
-            this.retryExecutor.shutdown();
+            retryExecutor.shutdown();
         }
     }
 
@@ -94,7 +94,7 @@ public final class SendByteClient implements AutoCloseable {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalArgumentException("A non-blank SendByte API key is required");
         }
-        if (containsControlCharacter(apiKey)) {
+        if (SendByteClient.containsControlCharacter(apiKey)) {
             throw new IllegalArgumentException(
                     "The SendByte API key contains an invalid control character");
         }
@@ -135,17 +135,17 @@ public final class SendByteClient implements AutoCloseable {
         }
 
         public Builder baseUri(final URI baseUri) {
-            this.baseUri = validateBaseUri(baseUri);
+            this.baseUri = Builder.validateBaseUri(baseUri);
             return this;
         }
 
         public Builder connectTimeout(final Duration connectTimeout) {
-            this.connectTimeout = positive(connectTimeout, "connectTimeout");
+            this.connectTimeout = Builder.positive(connectTimeout, "connectTimeout");
             return this;
         }
 
         public Builder requestTimeout(final Duration requestTimeout) {
-            this.requestTimeout = positive(requestTimeout, "requestTimeout");
+            this.requestTimeout = Builder.positive(requestTimeout, "requestTimeout");
             return this;
         }
 
@@ -171,7 +171,7 @@ public final class SendByteClient implements AutoCloseable {
         public Builder userAgent(final String userAgent) {
             if (userAgent == null
                     || userAgent.trim().isEmpty()
-                    || containsControlCharacter(userAgent)) {
+                    || SendByteClient.containsControlCharacter(userAgent)) {
                 throw new IllegalArgumentException(
                         "userAgent must be non-blank and contain no control characters");
             }
@@ -186,10 +186,10 @@ public final class SendByteClient implements AutoCloseable {
         }
 
         public SendByteClient build() {
-            validateBaseUri(this.baseUri);
-            positive(this.connectTimeout, "connectTimeout");
-            positive(this.requestTimeout, "requestTimeout");
-            if (this.transport == null && this.connectTimeout.compareTo(this.requestTimeout) > 0) {
+            Builder.validateBaseUri(baseUri);
+            Builder.positive(connectTimeout, "connectTimeout");
+            Builder.positive(requestTimeout, "requestTimeout");
+            if (this.transport == null && connectTimeout.compareTo(requestTimeout) > 0) {
                 throw new IllegalArgumentException(
                         "connectTimeout must not exceed requestTimeout for the default transport");
             }

@@ -1,4 +1,4 @@
-package africa.sendbyte.email;
+package africa.sendbyte.email.request;
 
 import java.util.Base64;
 import java.util.Objects;

@@ -1,5 +1,6 @@
-package africa.sendbyte.email;
+package africa.sendbyte.email.request;
 
+import africa.sendbyte.email.EmailStatus;
 import java.util.Objects;
 
 /** Filters for listing emails. */

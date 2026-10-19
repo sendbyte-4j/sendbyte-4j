@@ -25,7 +25,7 @@ public final class TransportRequest {
             final Duration timeout) {
         this.method = Objects.requireNonNull(method, "method");
         this.uri = Objects.requireNonNull(uri, "uri");
-        final Map<String, List<String>> copiedHeaders = caseInsensitiveHeaders();
+        final Map<String, List<String>> copiedHeaders = TransportRequest.caseInsensitiveHeaders();
         headers.forEach(
                 (name, values) ->
                         copiedHeaders
@@ -34,29 +34,29 @@ public final class TransportRequest {
                                         ignored -> new ArrayList<>())
                                 .addAll(List.copyOf(values)));
 
-        this.headers = immutableHeaders(copiedHeaders);
+        this.headers = TransportRequest.immutableHeaders(copiedHeaders);
         this.body = body == null ? new byte[0] : body.clone();
         this.timeout = Objects.requireNonNull(timeout, "timeout");
     }
 
     public String method() {
-        return this.method;
+        return method;
     }
 
     public URI uri() {
-        return this.uri;
+        return uri;
     }
 
     public Map<String, List<String>> headers() {
-        return this.headers;
+        return headers;
     }
 
     public byte[] body() {
-        return this.body.clone();
+        return body.clone();
     }
 
     public Duration timeout() {
-        return this.timeout;
+        return timeout;
     }
 
     private static Map<String, List<String>> caseInsensitiveHeaders() {
@@ -65,7 +65,7 @@ public final class TransportRequest {
 
     private static Map<String, List<String>> immutableHeaders(
             final Map<String, List<String>> headers) {
-        final Map<String, List<String>> copy = caseInsensitiveHeaders();
+        final Map<String, List<String>> copy = TransportRequest.caseInsensitiveHeaders();
         headers.forEach((name, values) -> copy.put(name, List.copyOf(values)));
         return Collections.unmodifiableMap(copy);
     }

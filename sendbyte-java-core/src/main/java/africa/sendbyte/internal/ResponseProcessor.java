@@ -32,9 +32,9 @@ final class ResponseProcessor {
         final ResponseMetadata metadata =
                 new ResponseMetadata(response.statusCode(), response.headers());
         final RequestDiagnostics diagnostics =
-                this.diagnosticsReporter.create(
+                diagnosticsReporter.create(
                         request, state, response.statusCode(), metadata.requestId(), null, false);
-        this.diagnosticsReporter.observe(diagnostics);
+        diagnosticsReporter.observe(diagnostics);
         return new DetailedResponse<>(value, metadata, diagnostics);
     }
 
@@ -42,19 +42,19 @@ final class ResponseProcessor {
             final ClientRequest request,
             final TransportResponse response,
             final ExecutionState state) {
-        if (response.bodyLength() <= this.maxResponseBodyBytes) {
+        if (response.bodyLength() <= maxResponseBodyBytes) {
             return;
         }
 
         final RequestDiagnostics diagnostics =
-                this.diagnosticsReporter.create(
+                diagnosticsReporter.create(
                         request,
                         state,
                         response.statusCode(),
                         response.firstHeader("x-request-id"),
                         FailureCategory.RESPONSE_TOO_LARGE,
                         false);
-        this.diagnosticsReporter.observe(diagnostics);
+        diagnosticsReporter.observe(diagnostics);
         throw new ResponseTooLargeException(
                 "The SendByte API response body exceeded the configured SDK buffer limit",
                 diagnostics);

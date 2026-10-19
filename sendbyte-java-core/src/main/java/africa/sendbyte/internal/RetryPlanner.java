@@ -53,20 +53,20 @@ final class RetryPlanner {
     Duration delay(final String retryAfterHeader, final int attemptCount) {
         final Duration retryAfter = this.retryAfter(retryAfterHeader);
         if (retryAfter != null) {
-            return cap(retryAfter, this.retryPolicy.maxBackoff());
+            return RetryPlanner.cap(retryAfter, retryPolicy.maxBackoff());
         }
 
         final long exponent = 1L << Math.min(30, attemptCount - 1);
         final Duration capped =
-                cappedBackoff(
-                        this.retryPolicy.initialBackoff(), this.retryPolicy.maxBackoff(), exponent);
-        if (this.retryPolicy.jitterRatio() == 0.0d || capped.isZero()) {
+                RetryPlanner.cappedBackoff(
+                        retryPolicy.initialBackoff(), retryPolicy.maxBackoff(), exponent);
+        if (retryPolicy.jitterRatio() == 0.0d || capped.isZero()) {
             return capped;
         }
 
         final double jitter =
-                1.0d + ((this.random.getAsDouble() * 2.0d) - 1.0d) * this.retryPolicy.jitterRatio();
-        return multiply(capped, jitter);
+                1.0d + ((random.getAsDouble() * 2.0d) - 1.0d) * retryPolicy.jitterRatio();
+        return RetryPlanner.multiply(capped, jitter);
     }
 
     Duration retryAfter(final String value) {
@@ -80,7 +80,7 @@ final class RetryPlanner {
                 final Instant retryAt =
                         ZonedDateTime.parse(value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME)
                                 .toInstant();
-                final Duration delay = Duration.between(this.clock.instant(), retryAt);
+                final Duration delay = Duration.between(clock.instant(), retryAt);
                 return delay.isNegative() ? Duration.ZERO : delay;
             } catch (final DateTimeParseException ignoredAgain) {
                 return null;
@@ -90,7 +90,7 @@ final class RetryPlanner {
 
     private int maxAttempts(final ClientRequest request) {
         return request.options().maxAttempts() == null
-                ? this.retryPolicy.maxAttempts()
+                ? retryPolicy.maxAttempts()
                 : request.options().maxAttempts();
     }
 

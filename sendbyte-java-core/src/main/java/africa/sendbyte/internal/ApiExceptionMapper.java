@@ -36,7 +36,7 @@ final class ApiExceptionMapper {
         ErrorEnvelope envelope = null;
         if (response.bodyLength() > 0) {
             try {
-                envelope = this.json.read(response.body(), ErrorEnvelope.class);
+                envelope = json.read(response.body(), ErrorEnvelope.class);
             } catch (final RuntimeException ignored) {
                 // Preserve a useful HTTP failure even when a proxy returned non-contract JSON.
             }
@@ -52,7 +52,7 @@ final class ApiExceptionMapper {
         final String docsUrl = error == null ? null : error.docsUrl;
         final String requestId = response.firstHeader("x-request-id");
         final RequestDiagnostics diagnostics =
-                this.diagnosticsReporter.create(
+                diagnosticsReporter.create(
                         request,
                         state,
                         response.statusCode(),
@@ -67,9 +67,9 @@ final class ApiExceptionMapper {
                         code,
                         docsUrl,
                         requestId,
-                        this.retryPlanner.retryAfter(response.firstHeader("Retry-After")),
+                        retryPlanner.retryAfter(response.firstHeader("Retry-After")),
                         diagnostics);
-        this.diagnosticsReporter.observe(diagnostics);
+        diagnosticsReporter.observe(diagnostics);
         return exception;
     }
 

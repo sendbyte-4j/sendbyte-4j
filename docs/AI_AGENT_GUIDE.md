@@ -26,7 +26,7 @@ Configure the API key and base URI from the application environment or secret ma
 ```java
 import africa.sendbyte.SendByteClient;
 import africa.sendbyte.email.Emails;
-import africa.sendbyte.email.SendEmailRequest;
+import africa.sendbyte.email.request.SendEmailRequest;
 import java.net.URI;
 
 String apiKey = System.getenv("SENDBYTE_API_KEY");

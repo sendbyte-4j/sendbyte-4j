@@ -1,4 +1,6 @@
-package africa.sendbyte.email;
+package africa.sendbyte.email.request;
+
+import africa.sendbyte.email.EmailStatus;
 
 /** Filters for exporting email history as CSV. */
 public final class ExportEmailsRequest {

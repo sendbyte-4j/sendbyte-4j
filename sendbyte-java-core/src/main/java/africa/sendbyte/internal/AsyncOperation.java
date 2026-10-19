@@ -22,11 +22,11 @@ final class AsyncOperation<T> extends CompletableFuture<DetailedResponse<T>> {
      * when the client closes so that callers never wait on a future that cannot complete.
      */
     void abort(final Throwable failure) {
-        final CompletableFuture<TransportResponse> inFlight = this.current;
+        final CompletableFuture<TransportResponse> inFlight = current;
         if (inFlight != null) {
             inFlight.cancel(true);
         }
-        final ScheduledFuture<?> pendingRetry = this.scheduled;
+        final ScheduledFuture<?> pendingRetry = scheduled;
         if (pendingRetry != null) {
             pendingRetry.cancel(false);
         }
@@ -35,11 +35,11 @@ final class AsyncOperation<T> extends CompletableFuture<DetailedResponse<T>> {
 
     @Override
     public boolean cancel(final boolean mayInterruptIfRunning) {
-        final CompletableFuture<TransportResponse> currentRequest = this.current;
+        final CompletableFuture<TransportResponse> currentRequest = current;
         if (currentRequest != null) {
             currentRequest.cancel(mayInterruptIfRunning);
         }
-        final ScheduledFuture<?> scheduledRetry = this.scheduled;
+        final ScheduledFuture<?> scheduledRetry = scheduled;
         if (scheduledRetry != null) {
             scheduledRetry.cancel(mayInterruptIfRunning);
         }

@@ -30,58 +30,58 @@ public final class RequestDiagnostics {
     }
 
     public String operation() {
-        return this.operation;
+        return operation;
     }
 
     public String requestId() {
-        return this.requestId;
+        return requestId;
     }
 
     public Integer statusCode() {
-        return this.statusCode;
+        return statusCode;
     }
 
     public FailureCategory failureCategory() {
-        return this.failureCategory;
+        return failureCategory;
     }
 
     public Duration totalDuration() {
-        return this.totalDuration;
+        return totalDuration;
     }
 
     public int attemptCount() {
-        return this.attemptCount;
+        return attemptCount;
     }
 
     public Duration retryDelay() {
-        return this.retryDelay;
+        return retryDelay;
     }
 
     public boolean retryable() {
-        return this.retryable;
+        return retryable;
     }
 
     @Override
     public String toString() {
         return "RequestDiagnostics{"
                 + "operation='"
-                + this.operation
+                + operation
                 + '\''
                 + ", requestId='"
-                + this.requestId
+                + requestId
                 + '\''
                 + ", statusCode="
-                + this.statusCode
+                + statusCode
                 + ", failureCategory="
-                + this.failureCategory
+                + failureCategory
                 + ", totalDuration="
-                + this.totalDuration
+                + totalDuration
                 + ", attemptCount="
-                + this.attemptCount
+                + attemptCount
                 + ", retryDelay="
-                + this.retryDelay
+                + retryDelay
                 + ", retryable="
-                + this.retryable
+                + retryable
                 + '}';
     }
 
@@ -96,7 +96,7 @@ public final class RequestDiagnostics {
         private boolean retryable;
 
         private Builder(final String operation) {
-            this.operation = requireText(operation, "operation");
+            this.operation = Builder.requireText(operation, "operation");
         }
 
         public Builder requestId(final String requestId) {

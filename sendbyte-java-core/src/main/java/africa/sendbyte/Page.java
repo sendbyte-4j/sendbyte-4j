@@ -18,10 +18,10 @@ public final class Page<T> {
     }
 
     public List<T> data() {
-        return this.data;
+        return data;
     }
 
     public boolean hasMore() {
-        return this.hasMore;
+        return hasMore;
     }
 }

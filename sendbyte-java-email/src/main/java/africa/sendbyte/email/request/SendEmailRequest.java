@@ -1,5 +1,7 @@
-package africa.sendbyte.email;
+package africa.sendbyte.email.request;
 
+import africa.sendbyte.email.ListUnsubscribe;
+import africa.sendbyte.email.TrackingOptions;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -22,19 +22,19 @@ public final class ResponseMetadata {
     }
 
     public int statusCode() {
-        return this.statusCode;
+        return statusCode;
     }
 
     public Map<String, List<String>> headers() {
-        return this.headers;
+        return headers;
     }
 
     public String firstHeader(final String name) {
-        final List<String> values = this.headers.get(name);
+        final List<String> values = headers.get(name);
         return values == null || values.isEmpty() ? null : values.get(0);
     }
 
     public String requestId() {
-        return this.requestId;
+        return requestId;
     }
 }

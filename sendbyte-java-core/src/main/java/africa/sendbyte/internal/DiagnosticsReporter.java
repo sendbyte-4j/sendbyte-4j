@@ -26,7 +26,7 @@ final class DiagnosticsReporter {
                 .requestId(requestId)
                 .statusCode(statusCode)
                 .failureCategory(category)
-                .totalDuration(state.totalDuration(this.ticker))
+                .totalDuration(state.totalDuration(ticker))
                 .attemptCount(Math.max(1, state.attemptCount()))
                 .retryDelay(state.retryDelay())
                 .retryable(retryable)
@@ -50,7 +50,7 @@ final class DiagnosticsReporter {
 
     void observe(final RequestDiagnostics diagnostics) {
         try {
-            this.observer.observe(diagnostics);
+            observer.observe(diagnostics);
         } catch (final RuntimeException ignored) {
             // Observers are side-channel diagnostics and cannot affect API outcomes.
         }

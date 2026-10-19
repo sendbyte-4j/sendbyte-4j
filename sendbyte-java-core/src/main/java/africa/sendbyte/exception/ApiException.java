@@ -42,25 +42,25 @@ public class ApiException extends SendByteException {
     }
 
     public int statusCode() {
-        return this.statusCode;
+        return statusCode;
     }
 
     public String code() {
-        return this.code;
+        return code;
     }
 
     public String documentationUrl() {
-        return this.documentationUrl;
+        return documentationUrl;
     }
 
     public String requestId() {
-        return this.requestId;
+        return requestId;
     }
 
     /**
      * Classified failure meaning, resolved from {@link #code()} with the status code as a fallback.
      */
     public ApiErrorCategory category() {
-        return this.category;
+        return category;
     }
 }

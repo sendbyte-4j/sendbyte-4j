@@ -91,7 +91,7 @@ public final class WireSupport {
         if (value == null) {
             return null;
         }
-        return requireText(value, name);
+        return WireSupport.requireText(value, name);
     }
 
     /**

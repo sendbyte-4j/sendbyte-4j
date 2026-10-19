@@ -49,12 +49,12 @@ public enum ApiErrorCategory {
      */
     public static ApiErrorCategory fromCode(final String code, final int statusCode) {
         if (code != null) {
-            final ApiErrorCategory category = fromContractCode(code);
+            final ApiErrorCategory category = ApiErrorCategory.fromContractCode(code);
             if (category != null) {
                 return category;
             }
         }
-        return fromStatusCode(statusCode);
+        return ApiErrorCategory.fromStatusCode(statusCode);
     }
 
     private static ApiErrorCategory fromContractCode(final String code) {

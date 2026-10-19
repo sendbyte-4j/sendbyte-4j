@@ -46,16 +46,16 @@ final class ExecutionSupport {
     }
 
     ExecutionState newState(final ClientRequest request) {
-        return new ExecutionState(request, this.requestTimeout, this.ticker);
+        return new ExecutionState(request, requestTimeout, ticker);
     }
 
     TransportRequest transportRequest(final ClientRequest request, final ExecutionState state) {
         return requestFactory.create(
-                request, state.encodedBody(this::encodeBody), state.remaining(this.ticker));
+                request, state.encodedBody(this::encodeBody), state.remaining(ticker));
     }
 
     private byte[] encodeBody(final ClientRequest request) {
-        return request.body() == null ? null : this.json.write(request.body());
+        return request.body() == null ? null : json.write(request.body());
     }
 
     <T> africa.sendbyte.DetailedResponse<T> success(
@@ -80,7 +80,7 @@ final class ExecutionSupport {
 
         final Duration delay =
                 retryPlanner.delay(response.firstHeader("Retry-After"), state.attemptCount());
-        if (retryPlanner.canRetryAttempt(request, state, delay, this.ticker)) {
+        if (retryPlanner.canRetryAttempt(request, state, delay, ticker)) {
             state.addRetryDelay(delay);
             return RetryAttempt.retry(delay);
         }
@@ -102,7 +102,7 @@ final class ExecutionSupport {
         }
 
         final Duration delay = retryPlanner.delay(null, state.attemptCount());
-        if (!retryPlanner.canRetryAttempt(request, state, delay, this.ticker)) {
+        if (!retryPlanner.canRetryAttempt(request, state, delay, ticker)) {
             this.throwIfRetryBlockedByDeadline(request, state, null, delay);
             return RetryAttempt.none();
         }
@@ -148,16 +148,16 @@ final class ExecutionSupport {
             final String requestId,
             final FailureCategory category,
             final boolean retryable) {
-        return this.diagnosticsReporter.create(
+        return diagnosticsReporter.create(
                 request, state, statusCode, requestId, category, retryable);
     }
 
     void ensureOpen() {
-        this.lifecycle.ensureOpen();
+        lifecycle.ensureOpen();
     }
 
     void ensureDeadline(final ExecutionState state) {
-        if (state.remaining(this.ticker).isZero() || state.remaining(this.ticker).isNegative()) {
+        if (state.remaining(ticker).isZero() || state.remaining(ticker).isNegative()) {
             final RequestDiagnostics diagnostics =
                     this.diagnostics(
                             state.request(), state, null, null, FailureCategory.TIMEOUT, false);
@@ -172,7 +172,7 @@ final class ExecutionSupport {
             final ExecutionState state,
             final TransportResponse response,
             final Duration delay) {
-        if (retryPlanner.retryBlockedByDeadline(request, state, delay, this.ticker)) {
+        if (retryPlanner.retryBlockedByDeadline(request, state, delay, ticker)) {
             final RequestDiagnostics diagnostics =
                     this.diagnostics(
                             request,

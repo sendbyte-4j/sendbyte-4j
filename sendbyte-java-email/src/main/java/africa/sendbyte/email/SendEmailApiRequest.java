@@ -1,5 +1,7 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.email.request.Attachment;
+import africa.sendbyte.email.request.SendEmailRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.Collections;

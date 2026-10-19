@@ -1,4 +1,4 @@
-package africa.sendbyte.email;
+package africa.sendbyte.email.request;
 
 import africa.sendbyte.internal.WireSupport;
 

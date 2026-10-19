@@ -22,7 +22,7 @@ public final class ClientRequest {
         this.operation = builder.operation;
         this.method = builder.method;
         this.path = builder.encodedPath();
-        this.headers = immutableHeaders(builder.headers);
+        this.headers = ClientRequest.immutableHeaders(builder.headers);
         this.options = builder.options;
         this.idempotencyProtected = builder.idempotencyProtected;
         this.body = builder.body;
@@ -37,31 +37,31 @@ public final class ClientRequest {
     }
 
     public String operation() {
-        return this.operation;
+        return operation;
     }
 
     public String method() {
-        return this.method;
+        return method;
     }
 
     public String path() {
-        return this.path;
+        return path;
     }
 
     public Map<String, List<String>> headers() {
-        return this.headers;
+        return headers;
     }
 
     public RequestOptions options() {
-        return this.options;
+        return options;
     }
 
     public boolean idempotencyProtected() {
-        return this.idempotencyProtected;
+        return idempotencyProtected;
     }
 
     public Object body() {
-        return this.body;
+        return body;
     }
 
     public static final class Builder {
@@ -69,49 +69,49 @@ public final class ClientRequest {
         private final String method;
         private final String path;
         private final List<String> pathSegments = new ArrayList<>();
-        private final Map<String, List<String>> headers = caseInsensitiveHeaders();
+        private final Map<String, List<String>> headers = ClientRequest.caseInsensitiveHeaders();
         private final List<QueryParameter> queryParameters = new ArrayList<>();
         private RequestOptions options = RequestOptions.DEFAULT;
         private boolean idempotencyProtected;
         private Object body;
 
         private Builder(final String operation, final String method) {
-            this.operation = requireText(operation, "operation");
-            this.method = requireText(method, "method");
+            this.operation = Builder.requireText(operation, "operation");
+            this.method = Builder.requireText(method, "method");
             this.path = null;
         }
 
         private Builder(final String operation, final String method, final String path) {
-            this.operation = requireText(operation, "operation");
-            this.method = requireText(method, "method");
-            this.path = requirePath(path);
+            this.operation = Builder.requireText(operation, "operation");
+            this.method = Builder.requireText(method, "method");
+            this.path = Builder.requirePath(path);
         }
 
         public Builder header(final String name, final String value) {
-            this.headers
-                    .computeIfAbsent(requireText(name, "header name"), ignored -> new ArrayList<>())
-                    .add(requireText(value, "header value"));
+            headers.computeIfAbsent(
+                            Builder.requireText(name, "header name"), ignored -> new ArrayList<>())
+                    .add(Builder.requireText(value, "header value"));
             return this;
         }
 
         public Builder pathSegment(final String value) {
-            if (this.path != null) {
+            if (path != null) {
                 throw new IllegalStateException(
                         "pathSegment cannot be used when a literal path was supplied");
             }
-            this.pathSegments.add(encode(requireText(value, "path segment")));
+            pathSegments.add(ClientRequest.encode(Builder.requireText(value, "path segment")));
             return this;
         }
 
         public Builder queryParameter(final String name, final String value) {
-            if (this.path != null) {
+            if (path != null) {
                 throw new IllegalStateException(
                         "queryParameter cannot be used when a literal path was supplied");
             }
-            this.queryParameters.add(
+            queryParameters.add(
                     new QueryParameter(
-                            requireText(name, "query parameter name"),
-                            requireText(value, "query parameter value")));
+                            Builder.requireText(name, "query parameter name"),
+                            Builder.requireText(value, "query parameter value")));
             return this;
         }
 
@@ -135,7 +135,7 @@ public final class ClientRequest {
         }
 
         private static String requirePath(final String value) {
-            final String path = requireText(value, "path");
+            final String path = Builder.requireText(value, "path");
             if (!path.startsWith("/v1/") || path.contains("?") || path.contains("#")) {
                 throw new IllegalArgumentException("path must start with /v1/");
             }
@@ -151,23 +151,23 @@ public final class ClientRequest {
         }
 
         private String encodedPath() {
-            if (this.path != null) {
-                return this.path;
+            if (path != null) {
+                return path;
             }
-            if (this.pathSegments.isEmpty() || !"v1".equals(this.pathSegments.get(0))) {
+            if (pathSegments.isEmpty() || !"v1".equals(pathSegments.get(0))) {
                 throw new IllegalArgumentException("path must start with /v1/");
             }
 
             final StringBuilder builder = new StringBuilder();
-            for (final String segment : this.pathSegments) {
+            for (final String segment : pathSegments) {
                 builder.append('/').append(segment);
             }
-            for (int index = 0; index < this.queryParameters.size(); index++) {
-                final QueryParameter parameter = this.queryParameters.get(index);
+            for (int index = 0; index < queryParameters.size(); index++) {
+                final QueryParameter parameter = queryParameters.get(index);
                 builder.append(index == 0 ? '?' : '&')
-                        .append(encode(parameter.name))
+                        .append(ClientRequest.encode(parameter.name))
                         .append('=')
-                        .append(encode(parameter.value));
+                        .append(ClientRequest.encode(parameter.value));
             }
             return builder.toString();
         }
@@ -175,7 +175,7 @@ public final class ClientRequest {
 
     private static Map<String, List<String>> immutableHeaders(
             final Map<String, List<String>> headers) {
-        final Map<String, List<String>> copy = caseInsensitiveHeaders();
+        final Map<String, List<String>> copy = ClientRequest.caseInsensitiveHeaders();
         headers.forEach((name, values) -> copy.put(name, List.copyOf(values)));
         return Collections.unmodifiableMap(copy);
     }
@@ -189,7 +189,7 @@ public final class ClientRequest {
         final byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         for (final byte current : bytes) {
             final int unsigned = current & 0xff;
-            if (isUnreserved(unsigned)) {
+            if (ClientRequest.isUnreserved(unsigned)) {
                 builder.append((char) unsigned);
             } else {
                 builder.append('%');

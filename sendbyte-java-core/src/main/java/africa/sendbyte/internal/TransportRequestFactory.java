@@ -37,22 +37,18 @@ final class TransportRequestFactory {
         request.headers().forEach((name, values) -> headers.put(name, List.copyOf(values)));
         headers.put("Authorization", Collections.singletonList("Bearer " + this.currentApiKey()));
         headers.put("Accept", Collections.singletonList("application/json"));
-        headers.put("User-Agent", Collections.singletonList(this.userAgent));
+        headers.put("User-Agent", Collections.singletonList(userAgent));
 
         if (body != null) {
             headers.put("Content-Type", Collections.singletonList("application/json"));
         }
 
         return new TransportRequest(
-                request.method(),
-                this.baseUri.resolve(request.path()),
-                headers,
-                body,
-                remainingTimeout);
+                request.method(), baseUri.resolve(request.path()), headers, body, remainingTimeout);
     }
 
     private String currentApiKey() {
-        final String apiKey = this.credentialsProvider.apiKey();
+        final String apiKey = credentialsProvider.apiKey();
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalStateException("The credentials provider returned a blank API key");
         }

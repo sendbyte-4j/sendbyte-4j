@@ -1,5 +1,6 @@
 package africa.sendbyte.email;
 
+import africa.sendbyte.email.request.CreateDomainRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 final class CreateDomainApiRequest {
