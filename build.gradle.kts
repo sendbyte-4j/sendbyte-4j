@@ -1,11 +1,9 @@
 import java.security.MessageDigest
 import java.util.zip.ZipFile
-import org.gradle.api.plugins.JavaPlatformPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.quality.PmdExtension
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
@@ -15,11 +13,13 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
 
 plugins {
     base
     id("com.diffplug.spotless") version "8.10.2"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
+    id("com.vanniktech.maven.publish") version "0.37.0" apply false
 }
 
 val stableProductProjects = listOf(
@@ -58,16 +58,34 @@ allprojects {
     }
 }
 
+tasks.register("verifyReleaseVersion") {
+    group = "verification"
+    description = "Verifies that the manually selected release version matches this checkout."
+
+    doLast {
+        val selectedVersion = providers.gradleProperty("releaseVersion").orNull
+            ?: error("Set -PreleaseVersion to the version selected for this release.")
+        check(selectedVersion == project.version.toString()) {
+            "Selected release version $selectedVersion does not match project version ${project.version}."
+        }
+        check(!selectedVersion.endsWith("-SNAPSHOT")) {
+            "Snapshot versions cannot be released."
+        }
+    }
+}
+
 subprojects {
     pluginManager.apply("maven-publish")
+
+    if (path in publishedProjects) {
+        pluginManager.apply("com.vanniktech.maven.publish")
+    }
 
     plugins.withType<JavaPlugin> {
         pluginManager.apply("pmd")
 
         extensions.configure<JavaPluginExtension> {
             toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-            withSourcesJar()
-            withJavadocJar()
         }
 
         extensions.configure<PmdExtension> {
@@ -105,22 +123,34 @@ subprojects {
             })
         }
 
-        extensions.configure<PublishingExtension> {
-            publications {
-                create<MavenPublication>("mavenJava") {
-                    from(components["java"])
-                    artifactId = project.name
-                }
-            }
-        }
     }
 
-    plugins.withType<JavaPlatformPlugin> {
-        extensions.configure<PublishingExtension> {
-            publications {
-                create<MavenPublication>("mavenJava") {
-                    from(components["javaPlatform"])
-                    artifactId = project.name
+    if (path in publishedProjects) {
+        extensions.configure<MavenPublishBaseExtension> {
+            publishToMavenCentral(automaticRelease = true)
+            if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+                signAllPublications()
+            }
+            pom {
+                name.set("SendByte Java SDK - ${project.name}")
+                description.set("${project.name} module for the SendByte Java SDK.")
+                url.set("https://github.com/sendbyte-4j/sendbyte-4j")
+                developers {
+                    developer {
+                        id.set("masterscode")
+                        name.set("Emmanuel Ogbinaka")
+                        url.set("https://github.com/masterscode")
+                    }
+                    developer {
+                        id.set("fabian-emmanuel")
+                        name.set("Fabian Emmanuel")
+                        url.set("https://github.com/fabian-emmanuel")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/sendbyte-4j/sendbyte-4j")
+                    connection.set("scm:git:https://github.com/sendbyte-4j/sendbyte-4j.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/sendbyte-4j/sendbyte-4j.git")
                 }
             }
         }

@@ -39,5 +39,20 @@ CI runs the test suite on Java 11, 17, 21, and 25, runs the release gates once o
 and checks that repeated builds produce identical archives. Project work is tracked in
 [GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues).
 
+## Releasing
+
+The `Release` GitHub Actions workflow is started manually from a `v<version>` Git tag. It
+runs `verifyRelease`, then publishes to Maven Central through the protected `release`
+environment. The selected tag and entered version must match the version in the build.
+
+Configure these secrets in the GitHub `release` environment:
+
+- `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`: the Central Portal user token pair.
+- `GPG_SIGNING_KEY` and `GPG_SIGNING_KEY_PASSWORD`: the ASCII-armored private signing key
+  and its passphrase. Publish the matching public key to a key server accepted by Central.
+
+The project license and corresponding Maven POM metadata must also be established before
+the first publication.
+
 See [coding conventions](CODING_CONVENTIONS.md) for contributions, [security policy](SECURITY.md)
 for vulnerability reports, and the [consumer AI agent guide](AI_AGENT_GUIDE.md) for SDK usage.
