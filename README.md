@@ -41,9 +41,11 @@ and checks that repeated builds produce identical archives. Project work is trac
 
 ## Releasing
 
-The `Release` GitHub Actions workflow is started manually from a `v<version>` Git tag. It
-runs `verifyRelease`, then publishes to Maven Central through the protected `release`
-environment. The selected tag and entered version must match the version in the build.
+The `Release` GitHub Actions workflow is started manually from the `release` branch with
+the version to publish. It runs `verifyRelease`, waits for the protected `release`
+environment and checks its publishing secrets before creating the `v<version>` tag and
+publishing to Maven Central. A rerun reuses that tag only when it points to the same
+verified commit.
 
 Configure these secrets in the GitHub `release` environment:
 
