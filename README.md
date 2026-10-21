@@ -1,60 +1,116 @@
 # SendByte Java SDK
 
-`sendbyte-4j` is the new modular Java SDK for the SendByte API. It uses the official OpenAPI snapshot in [`spec/openapi.yaml`](spec/openapi.yaml) as its wire contract; `../SendByte-Java-main` is reference material only and is not a migration target.
+The SendByte Java SDK lets Java applications call the SendByte API with typed request and response
+objects. It includes a framework-neutral client, product modules, and a Spring Boot integration.
 
-## Current implementation
+## Requirements
 
-- Java 11 core and product runtime baseline.
-- Framework-neutral client with fixed or provider-backed credentials.
-- JDK `HttpClient` transport with synchronous/asynchronous execution and cancellation propagation.
-- Internally isolated Jackson serialization.
-- Typed API errors with request-ID and rate-limit metadata.
-- First email-send vertical slice with immutable request/response models.
+- Java 11 or newer for the core client and product modules.
+- Java 17 or newer for the Spring Boot and Quarkus integrations.
+- A SendByte API key and the API base URI for your account.
 
-Marketing, webhooks, administration, remaining email resources, Spring Boot, and Quarkus are represented in the module plan but are not yet complete.
+## Install
 
-## Build
+Use a version listed on the [GitHub Releases page](https://github.com/sendbyte-4j/sendbyte-4j/releases).
+The version in this source repository may not have been published yet.
 
-Run Gradle itself on JDK 17 or newer. Core and product source is compiled with `--release 11`.
+Gradle:
 
-```shell
-./gradlew clean check
+```kotlin
+dependencies {
+    implementation("io.github.sendbyte-4j.sendbyte:sendbyte-java-email:<version>")
+}
 ```
 
-The `check` lifecycle is hermetic: it verifies formatting, PMD rules, compiler warnings,
-dependency version conflicts, dependency licenses, JavaDoc syntax, the reviewed OpenAPI
-snapshot, and stable module membership, without network access or local publication.
+Maven:
 
-`./gradlew verifyRelease` adds the release gates that need local publication and a Maven
-toolchain: the published-artifact content checks and the Gradle/Maven consumer fixtures.
-Use `./gradlew spotlessApply` to format supported source and repository files.
-
-To exercise tests on a specific installed JDK:
-
-```shell
-./gradlew test -PtestJavaVersion=11
+```xml
+<dependency>
+  <groupId>io.github.sendbyte-4j.sendbyte</groupId>
+  <artifactId>sendbyte-java-email</artifactId>
+  <version>REPLACE_WITH_RELEASED_VERSION</version>
+</dependency>
 ```
 
-CI runs the test suite on Java 11, 17, 21, and 25, runs the release gates once on Java 17,
-and checks that repeated builds produce identical archives. Project work is tracked in
-[GitHub Issues](https://github.com/sendbyte-4j/sendbyte-4j/issues).
+The email module includes the core client as a dependency. Other product modules are available as
+`sendbyte-java-marketing`, `sendbyte-java-webhooks`, and `sendbyte-java-admin`. Use
+`sendbyte-java-all` if you want all product modules.
 
-## Releasing
+## Send an email
 
-The `Release` GitHub Actions workflow is started manually from the `release` branch with
-the version to publish. It runs `verifyRelease`, waits for the protected `release`
-environment and checks its publishing secrets before creating the `v<version>` tag and
-publishing to Maven Central. A rerun reuses that tag only when it points to the same
-verified commit.
+Set `SENDBYTE_API_KEY` to your API key and `SENDBYTE_BASE_URI` to the API base URI provided for your
+SendByte account. The SDK requires both values; it does not guess the API host. Keep the key in an
+environment variable or secret manager, not in source code.
 
-Configure these secrets in the GitHub `release` environment:
+```java
+import africa.sendbyte.SendByteClient;
+import africa.sendbyte.email.Email;
+import africa.sendbyte.email.Emails;
+import africa.sendbyte.email.request.SendEmailRequest;
+import java.net.URI;
 
-- `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`: the Central Portal user token pair.
-- `GPG_SIGNING_KEY` and `GPG_SIGNING_KEY_PASSWORD`: the ASCII-armored private signing key
-  and its passphrase. Publish the matching public key to a key server accepted by Central.
+public final class SendUpdate {
+    public static void main(final String[] args) {
+        final String apiKey = System.getenv("SENDBYTE_API_KEY");
+        final String baseUri = System.getenv("SENDBYTE_BASE_URI");
 
-The project license and corresponding Maven POM metadata must also be established before
-the first publication.
+        try (SendByteClient client = SendByteClient.builder()
+                .apiKey(apiKey)
+                .baseUri(URI.create(baseUri))
+                .build()) {
+            final Emails emails = new Emails(client);
+            final SendEmailRequest request = SendEmailRequest.builder()
+                    .from("updates@example.com")
+                    .to("person@example.net")
+                    .subject("Your update")
+                    .text("The update is ready.")
+                    .build();
 
-See [coding conventions](CODING_CONVENTIONS.md) for contributions, [security policy](SECURITY.md)
-for vulnerability reports, and the [consumer AI agent guide](AI_AGENT_GUIDE.md) for SDK usage.
+            final Email sent = emails.send(request);
+            System.out.println("Accepted email with id: " + sent.id());
+        }
+    }
+}
+```
+
+`SendByteClient` is thread-safe. Create one per application component, reuse it, and close it when
+that component shuts down. For asynchronous requests, use `emails.sendAsync(request)` and keep the
+client open until the returned `CompletableFuture` completes or is cancelled.
+
+## Spring Boot
+
+Add the starter and the product module you use at the same version. For email support, add:
+
+```kotlin
+dependencies {
+    implementation("io.github.sendbyte-4j.sendbyte:sendbyte-spring-boot-starter:<version>")
+    implementation("io.github.sendbyte-4j.sendbyte:sendbyte-java-email:<version>")
+}
+```
+
+Then configure the credentials and API host in `application.yml`:
+
+```yaml
+sendbyte:
+  api-key: ${SENDBYTE_API_KEY}
+  base-uri: ${SENDBYTE_BASE_URI}
+```
+
+Inject `africa.sendbyte.email.Emails` into your service to send messages. The starter creates and
+closes the shared client with the Spring application context.
+
+## Errors and diagnostics
+
+SDK request failures are reported as `SendByteException` subclasses, including authentication,
+authorization, rate-limit, timeout, and connection failures. Catch a specific exception when your
+application needs different handling for that case. Exceptions expose request diagnostics when
+available; avoid logging API keys, message bodies, or recipient data.
+
+## API coverage
+
+The SDK is being developed in modules. Check the Java API in the version you install for available
+operations. The [OpenAPI snapshot](spec/openapi.yaml) describes the service contract; an operation
+in that file does not necessarily mean the matching SDK method is included in your version.
+
+For help using the SDK, open a [GitHub issue](https://github.com/sendbyte-4j/sendbyte-4j/issues).
+For vulnerability reports, follow the [security policy](SECURITY.md).
