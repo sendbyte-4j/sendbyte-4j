@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public final class SendByteProperties {
     private boolean enabled = true;
     private String apiKey;
-    private URI baseUri;
+    private URI baseUri = SendByteClient.DEFAULT_BASE_URI;
     private Duration connectTimeout = Duration.ofSeconds(10);
     private Duration requestTimeout = Duration.ofSeconds(30);
     private String userAgent;

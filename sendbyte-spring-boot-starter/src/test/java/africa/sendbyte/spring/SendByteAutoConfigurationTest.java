@@ -42,12 +42,14 @@ final class SendByteAutoConfigurationTest {
 
     @Test
     void createsClientAndPresentProductBeansFromApiKey() {
+        final CapturingTransport transport = new CapturingTransport();
         contextRunner
-                .withPropertyValues(
-                        "sendbyte.api-key=sk_test_example", "sendbyte.base-uri=https://api.test")
+                .withPropertyValues("sendbyte.api-key=sk_test_example")
+                .withBean(HttpTransport.class, () -> transport)
                 .run(
                         context -> {
-                            assertNotNull(context.getBean(SendByteClient.class));
+                            final SendByteClient client = context.getBean(SendByteClient.class);
+                            assertNotNull(client);
                             assertNotNull(context.getBean(Emails.class));
                             assertNotNull(context.getBean(Domains.class));
                             assertNotNull(context.getBean(Templates.class));
@@ -55,6 +57,15 @@ final class SendByteAutoConfigurationTest {
                             assertNotNull(context.getBean(ApiKeys.class));
                             assertNotNull(context.getBean(Marketing.class));
                             assertNotNull(context.getBean(Webhooks.class));
+
+                            client.runtime()
+                                    .execute(
+                                            ClientRequest.builder("test.ping", "GET", "/v1/ping")
+                                                    .build(),
+                                            Void.class);
+                            assertEquals(
+                                    "https://api.sendbyte.africa/v1/ping",
+                                    transport.request.get().uri().toString());
                         });
     }
 
