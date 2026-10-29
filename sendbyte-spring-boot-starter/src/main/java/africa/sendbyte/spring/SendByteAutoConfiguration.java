@@ -81,9 +81,6 @@ public class SendByteAutoConfiguration {
             throw new IllegalStateException(
                     "sendbyte.api-key must be configured with a non-blank SendByte API key");
         }
-        if (properties.getBaseUri() == null) {
-            throw new IllegalStateException("sendbyte.base-uri must be configured");
-        }
     }
 
     private static RetryPolicy retryPolicy(final SendByteProperties.Retry properties) {

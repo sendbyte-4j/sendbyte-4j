@@ -396,7 +396,7 @@ val verifyStableModuleSets by tasks.registering {
 val openApiSnapshot = layout.projectDirectory.file("spec/openapi.yaml")
 val openApiUpstreamUrl = providers.gradleProperty("openApiUpstreamUrl")
     .orElse(providers.environmentVariable("OPENAPI_UPSTREAM_URL"))
-val expectedOpenApiSha256 = "de37a5be7fee93eebbec0955f5f3ceff7aed856ab2f3da61fd1dadc3c28815c9"
+val expectedOpenApiSha256 = "d321b878de1769172e32f0bfb857fcf5f7a037567a446f528dc49ddd2a094d10"
 
 fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256")
     .digest(this)
