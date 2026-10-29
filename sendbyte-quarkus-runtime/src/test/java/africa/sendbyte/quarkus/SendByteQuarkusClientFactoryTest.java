@@ -148,12 +148,13 @@ final class SendByteQuarkusClientFactoryTest {
                         Void.class);
 
         assertEquals(0, observed.get());
+        assertEquals(
+                "https://api.sendbyte.africa/v1/ping", transport.request.get().uri().toString());
     }
 
     private static SendByteQuarkusConfig config() {
         final SendByteQuarkusConfig config = new SendByteQuarkusConfig();
         config.apiKey("sk_test_example");
-        config.baseUri(URI.create("https://api.test"));
         return config;
     }
 

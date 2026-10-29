@@ -25,6 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * attachments represented by product modules, are serialized in memory by the core runtime.
  */
 public final class SendByteClient implements AutoCloseable {
+    /** Default SendByte API base URI used when no alternate host is configured. */
+    public static final URI DEFAULT_BASE_URI = URI.create("https://api.sendbyte.africa");
+
     public static final long DEFAULT_MAX_RESPONSE_BODY_BYTES = 16L * 1024L * 1024L;
 
     private final ClientRuntime runtime;
@@ -110,7 +113,7 @@ public final class SendByteClient implements AutoCloseable {
     }
 
     public static final class Builder {
-        private URI baseUri;
+        private URI baseUri = DEFAULT_BASE_URI;
         private CredentialsProvider credentialsProvider;
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration requestTimeout = Duration.ofSeconds(30);

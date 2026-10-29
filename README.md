@@ -7,7 +7,7 @@ objects. It includes a framework-neutral client, product modules, and a Spring B
 
 - Java 11 or newer for the core client and product modules.
 - Java 17 or newer for the Spring Boot and Quarkus integrations.
-- A SendByte API key and the API base URI for your account.
+- A SendByte API key. The SDK defaults to `https://api.sendbyte.africa`.
 
 ## Install
 
@@ -38,25 +38,23 @@ The email module includes the core client as a dependency. Other product modules
 
 ## Send an email
 
-Set `SENDBYTE_API_KEY` to your API key and `SENDBYTE_BASE_URI` to the API base URI provided for your
-SendByte account. The SDK requires both values; it does not guess the API host. Keep the key in an
-environment variable or secret manager, not in source code.
+Set `SENDBYTE_API_KEY` to your API key. Test keys (`sk_test_`) use SendByte's sandbox, while live
+keys (`sk_live_`) send real email. The SDK uses `https://api.sendbyte.africa` by default. You can
+override the host with `SENDBYTE_BASE_URI` for local testing or an alternate deployment. Keep the
+key in an environment variable or secret manager, not in source code.
 
 ```java
 import africa.sendbyte.SendByteClient;
 import africa.sendbyte.email.Email;
 import africa.sendbyte.email.Emails;
 import africa.sendbyte.email.request.SendEmailRequest;
-import java.net.URI;
 
 public final class SendUpdate {
     public static void main(final String[] args) {
         final String apiKey = System.getenv("SENDBYTE_API_KEY");
-        final String baseUri = System.getenv("SENDBYTE_BASE_URI");
 
         try (SendByteClient client = SendByteClient.builder()
                 .apiKey(apiKey)
-                .baseUri(URI.create(baseUri))
                 .build()) {
             final Emails emails = new Emails(client);
             final SendEmailRequest request = SendEmailRequest.builder()
@@ -88,12 +86,12 @@ dependencies {
 }
 ```
 
-Then configure the credentials and API host in `application.yml`:
+Then configure the API key in `application.yml`. The API host defaults to
+`https://api.sendbyte.africa`; set `base-uri` only when you need to override it:
 
 ```yaml
 sendbyte:
   api-key: ${SENDBYTE_API_KEY}
-  base-uri: ${SENDBYTE_BASE_URI}
 ```
 
 Inject `africa.sendbyte.email.Emails` into your service to send messages. The starter creates and

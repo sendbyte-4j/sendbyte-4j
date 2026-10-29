@@ -25,7 +25,9 @@ import org.junit.jupiter.api.Test;
 final class SendByteClientTest {
     @Test
     void rejectsUnsafeOrInvalidConfiguration() {
-        assertThrows(IllegalArgumentException.class, () -> SendByteClient.builder().build());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SendByteClient.builder().apiKey("key").baseUri(null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
@@ -59,6 +61,23 @@ final class SendByteClientTest {
                                 .apiKey("key")
                                 .baseUri(URI.create("https://api.test"))
                                 .maxResponseBodyBytes(0));
+    }
+
+    @Test
+    void usesDefaultBaseUriWhenNoOverrideIsProvided() {
+        final CapturingTransport transport = new CapturingTransport();
+        try (SendByteClient client =
+                SendByteClient.builder()
+                        .apiKey("sk_test_example")
+                        .transport(transport, ResourceOwnership.CALLER)
+                        .build()) {
+            client.runtime()
+                    .execute(
+                            ClientRequest.builder("test.ping", "GET", "/v1/ping").build(),
+                            Void.class);
+        }
+
+        assertEquals("https://api.sendbyte.africa/v1/ping", transport.request.uri().toString());
     }
 
     @Test
