@@ -135,6 +135,13 @@ subprojects {
                 name.set("SendByte Java SDK - ${project.name}")
                 description.set("${project.name} module for the SendByte Java SDK.")
                 url.set("https://github.com/sendbyte-4j/sendbyte-4j")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                        distribution.set("repo")
+                    }
+                }
                 developers {
                     developer {
                         id.set("masterscode")
