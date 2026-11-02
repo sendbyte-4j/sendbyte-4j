@@ -44,5 +44,5 @@ Configure these secrets in the GitHub `release` environment:
 - `GPG_SIGNING_KEY` and `GPG_SIGNING_KEY_PASSWORD`: the ASCII-armored private signing key and its
   passphrase. Publish the matching public key to a key server accepted by Central.
 
-The project license and corresponding Maven POM metadata must be established before the first
-publication.
+The project is licensed under the MIT License. Every published module includes the corresponding
+license information in its Maven POM.
